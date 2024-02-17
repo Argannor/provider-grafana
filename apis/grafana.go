@@ -20,15 +20,15 @@ package apis
 import (
 	"k8s.io/apimachinery/pkg/runtime"
 
-	samplev1alpha1 "github.com/crossplane/provider-grafana/apis/sample/v1alpha1"
-	grafanav1alpha1 "github.com/crossplane/provider-grafana/apis/v1alpha1"
+	ossv1alpha1 "github.com/argannor/provider-grafana/apis/oss/v1alpha1"
+	grafanav1alpha1 "github.com/argannor/provider-grafana/apis/v1alpha1"
 )
 
 func init() {
 	// Register the types with the Scheme so the components can map objects to GroupVersionKinds and back
 	AddToSchemes = append(AddToSchemes,
 		grafanav1alpha1.SchemeBuilder.AddToScheme,
-		samplev1alpha1.SchemeBuilder.AddToScheme,
+		ossv1alpha1.SchemeBuilder.AddToScheme,
 	)
 }
 

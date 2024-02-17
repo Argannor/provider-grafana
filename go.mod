@@ -1,4 +1,4 @@
-module github.com/crossplane/provider-grafana
+module github.com/argannor/provider-grafana
 
 go 1.20
 

@@ -36,10 +36,10 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/ratelimiter"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
-	"github.com/crossplane/provider-grafana/apis"
-	"github.com/crossplane/provider-grafana/apis/v1alpha1"
-	grafana "github.com/crossplane/provider-grafana/internal/controller"
-	"github.com/crossplane/provider-grafana/internal/features"
+	"github.com/argannor/provider-grafana/apis"
+	"github.com/argannor/provider-grafana/apis/v1alpha1"
+	grafana "github.com/argannor/provider-grafana/internal/controller"
+	"github.com/argannor/provider-grafana/internal/features"
 )
 
 func main() {

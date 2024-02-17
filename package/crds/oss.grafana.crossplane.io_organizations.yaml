@@ -4,18 +4,18 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.12.1
-  name: mytypes.sample.grafana.crossplane.io
+  name: organizations.oss.grafana.crossplane.io
 spec:
-  group: sample.grafana.crossplane.io
+  group: oss.grafana.crossplane.io
   names:
     categories:
     - crossplane
     - managed
     - grafana
-    kind: MyType
-    listKind: MyTypeList
-    plural: mytypes
-    singular: mytype
+    kind: Organization
+    listKind: OrganizationList
+    plural: organizations
+    singular: organization
   scope: Cluster
   versions:
   - additionalPrinterColumns:
@@ -34,7 +34,7 @@ spec:
     name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: A MyType is an example API type.
+        description: A Organization is an example API type.
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -49,7 +49,7 @@ spec:
           metadata:
             type: object
           spec:
-            description: A MyTypeSpec defines the desired state of a MyType.
+            description: A OrganizationSpec defines the desired state of a Organization.
             properties:
               deletionPolicy:
                 default: Delete
@@ -65,7 +65,8 @@ spec:
                 - Delete
                 type: string
               forProvider:
-                description: MyTypeParameters are the configurable fields of a MyType.
+                description: OrganizationParameters are the configurable fields of
+                  a Organization.
                 properties:
                   configurableField:
                     type: string
@@ -270,17 +271,14 @@ spec:
             - forProvider
             type: object
           status:
-            description: A MyTypeStatus represents the observed state of a MyType.
+            description: A OrganizationStatus represents the observed state of a Organization.
             properties:
               atProvider:
-                description: MyTypeObservation are the observable fields of a MyType.
+                description: OrganizationObservation are the observable fields of
+                  a Organization.
                 properties:
-                  configurableField:
-                    type: string
                   observableField:
                     type: string
-                required:
-                - configurableField
                 type: object
               conditions:
                 description: Conditions of the resource.
