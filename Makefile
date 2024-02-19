@@ -102,6 +102,12 @@ dev-clean: $(KIND) $(KUBECTL)
 	@$(INFO) Deleting kind cluster
 	@$(KIND) delete cluster --name=$(PROJECT_NAME)-dev
 
+dev-redeploy: $(KIND) $(KUBECTL)
+	@$(INFO) Building
+	@$(MAKE) generate
+	@$(INFO) Starting Provider Grafana controllers
+	@$(GO) run cmd/provider/main.go --debug
+
 .PHONY: submodules fallthrough test-integration run dev dev-clean
 
 # ====================================================================================

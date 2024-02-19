@@ -29,6 +29,12 @@ import (
 type ProviderConfigSpec struct {
 	// Credentials required to authenticate to this provider.
 	Credentials ProviderCredentials `json:"credentials"`
+	// Host is the domain name or IP address of the host that serves the API.
+	Host string `json:"host"`
+	// Port is the port number of the host that serves the API.
+	Port int `json:"port"`
+	// Schemes are the preferred schemes used by the API (https, http).
+	Schemes []string `json:"schemes"`
 }
 
 // ProviderCredentials required to authenticate.

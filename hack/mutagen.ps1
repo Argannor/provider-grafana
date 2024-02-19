@@ -1,0 +1,2 @@
+mutagen sync create --name=provider-grafana . docker://UBUNTU_BRIDGE/app/provider-grafana --default-owner-beta=ubuntu --default-group-beta=ubuntu
+mutagen sync create --name=provider-grafana-git ./.git docker://UBUNTU_BRIDGE/app/provider-grafana/.git --default-owner-beta=ubuntu --default-group-beta=ubuntu --mode="one-way-replica"

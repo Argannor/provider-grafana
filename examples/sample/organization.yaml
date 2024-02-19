@@ -1,0 +1,13 @@
+apiVersion: oss.grafana.crossplane.io/v1alpha1
+kind: Organization
+metadata:
+  name: example
+spec:
+  deletionPolicy: "Delete"
+  forProvider:
+    name: "patch-me"
+    viewers: [ "bob@acme.org" ]
+    editors: [ "charlie@acme.org" ]
+    admins: [ "alice@acme.org", "admin@localhost" ]
+  providerConfigRef:
+    name: provider-grafana
