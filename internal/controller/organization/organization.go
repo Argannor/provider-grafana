@@ -19,7 +19,6 @@ package organization
 import (
 	"bytes"
 	"context"
-	"crypto/rand"
 	"encoding/base64"
 	"fmt"
 	"io"
@@ -28,8 +27,6 @@ import (
 
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/google/go-cmp/cmp"
-	"github.com/grafana/grafana-openapi-client-go/client/orgs"
-	"github.com/grafana/grafana-openapi-client-go/client/users"
 	"github.com/grafana/grafana-openapi-client-go/models"
 
 	"github.com/pkg/errors"
@@ -73,8 +70,9 @@ const (
 type NoOpService struct{}
 
 var (
-	newService = func(config *grafana.TransportConfig) (grafana.GrafanaHTTPAPI, error) {
-		return *grafana.NewHTTPClientWithConfig(nil, config), nil
+	newService = func(config *grafana.TransportConfig) (GrafanaAPI, error) {
+		client := *grafana.NewHTTPClientWithConfig(nil, config)
+		return NewGrafanaAPI(client), nil
 	}
 )
 
@@ -132,7 +130,7 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 type connector struct {
 	kube         client.Client
 	usage        resource.Tracker
-	newServiceFn func(config *grafana.TransportConfig) (grafana.GrafanaHTTPAPI, error)
+	newServiceFn func(config *grafana.TransportConfig) (GrafanaAPI, error)
 	logger       logging.Logger
 }
 
@@ -190,7 +188,7 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 type external struct {
 	// A 'client' used to connect to the external resource API. In practice this
 	// would be something like an AWS SDK client.
-	service grafana.GrafanaHTTPAPI
+	service GrafanaAPI
 	logger  logging.Logger
 }
 
@@ -217,48 +215,32 @@ type ApiError interface {
 	IsCode(code int) bool
 }
 
-func isCode(err error, code int) bool {
-	if err == nil {
-		return false
-	}
-	var oasError ApiError
-	isOasError := errors.As(err, &oasError)
-	if isOasError {
-		return oasError.IsCode(code)
-	}
-	return false
-}
-
 func (c *external) observeActualParameters(cr *v1alpha1.Organization) (*v1alpha1.OrganizationParameters, error) {
-	resp, err := c.service.Clone().WithOrgID(0).Orgs.GetOrgByName(*cr.Spec.ForProvider.Name)
+	org, err := c.service.GetOrgByName(*cr.Spec.ForProvider.Name)
 
-	if isCode(err, 404) {
-		return nil, nil
-	}
-
-	if err != nil {
+	if err != nil || org == nil {
 		return nil, errors.Wrap(err, errGetOrg)
 	}
 
-	cr.Status.AtProvider.OrgID = &resp.Payload.ID
-	idAsString := fmt.Sprintf("%d", resp.Payload.ID)
+	cr.Status.AtProvider.OrgID = &org.ID
+	idAsString := fmt.Sprintf("%d", org.ID)
 	cr.Status.AtProvider.ID = &idAsString
 	cr.Status.AtProvider.Name = cr.Spec.ForProvider.Name
 	cr.Status.AtProvider.AdminUser = cr.Spec.ForProvider.AdminUser
 	cr.Status.AtProvider.CreateUsers = cr.Spec.ForProvider.CreateUsers
 
-	userResp, err := c.service.Clone().WithOrgID(resp.Payload.ID).Orgs.GetOrgUsers(resp.Payload.ID)
+	orgUsers, err := c.service.GetOrgUsers(org.ID)
 
 	if err != nil {
 		return nil, errors.Wrap(err, errGetOrgUsers)
 	}
 
 	actual := v1alpha1.OrganizationParameters{}
-	actual.Name = &resp.Payload.Name
+	actual.Name = &org.Name
 	roles := []grafanaRole{"Admin", "Editor", "Viewer", "None"}
 	for _, role := range roles {
 		var users []*string
-		for _, user := range userResp.Payload {
+		for _, user := range orgUsers {
 			if user.Role == string(role) {
 				users = append(users, &user.Email)
 			}
@@ -348,19 +330,17 @@ func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 		return managed.ExternalCreation{}, errors.New(errNotOrganization)
 	}
 
-	response, err := c.service.Clone().WithOrgID(0).Orgs.CreateOrg(&models.CreateOrgCommand{
-		Name: *cr.Spec.ForProvider.Name,
-	})
+	org, err := c.service.CreateOrg(*cr.Spec.ForProvider.Name)
 
 	if err != nil {
 		return managed.ExternalCreation{}, errors.Wrap(err, errCreateOrg)
 	}
 
-	cr.Status.AtProvider.OrgID = response.Payload.OrgID
-	idAsString := fmt.Sprintf("%d", response.Payload.OrgID)
+	cr.Status.AtProvider.OrgID = org.OrgID
+	idAsString := fmt.Sprintf("%d", org.OrgID)
 	cr.Status.AtProvider.ID = &idAsString
 
-	err = c.updateUsers(cr, v1alpha1.OrganizationParameters{}, response.Payload.OrgID)
+	err = c.updateUsers(cr, v1alpha1.OrganizationParameters{}, org.OrgID)
 
 	// TODO: according to the documentation we should not return an error if the resource already exists, but we need
 	//   to ensure, that the existing resource should be adopted somehow according to
@@ -370,7 +350,6 @@ func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 
 func (c *external) updateUsers(cr *v1alpha1.Organization, actual v1alpha1.OrganizationParameters, orgID *int64) error {
 	var err error
-	client := c.service.Clone()
 	changes := userChanges(mapUsers(actual), mapUsers(cr.Spec.ForProvider))
 	changes, err = c.addUserIdsToChanges(&cr.Spec.ForProvider, changes, *orgID)
 	if err != nil {
@@ -380,12 +359,11 @@ func (c *external) updateUsers(cr *v1alpha1.Organization, actual v1alpha1.Organi
 		u := change.User
 		switch change.Type {
 		case Add:
-			_, err = client.Orgs.AddOrgUser(*orgID, &models.AddOrgUserCommand{LoginOrEmail: u.Email, Role: u.Role})
+			_, err = c.service.AddOrgUser(*orgID, &models.AddOrgUserCommand{LoginOrEmail: u.Email, Role: u.Role})
 		case Update:
-			params := orgs.NewUpdateOrgUserParams().WithOrgID(*orgID).WithUserID(u.ID).WithBody(&models.UpdateOrgUserCommand{Role: u.Role})
-			_, err = client.Orgs.UpdateOrgUser(params)
+			_, err = c.service.UpdateOrgUser(*orgID, u.ID, &models.UpdateOrgUserCommand{Role: u.Role})
 		case Remove:
-			_, err = client.Orgs.RemoveOrgUser(u.ID, *orgID)
+			_, err = c.service.RemoveOrgUser(u.ID, *orgID)
 		}
 		if err != nil && !strings.Contains(err.Error(), "409") {
 			return errors.Wrap(err, errUpdateUser)
@@ -411,53 +389,10 @@ func mapUsers(p v1alpha1.OrganizationParameters) map[string]OrgUser {
 	return users
 }
 
-func (c *external) getAllUsers() ([]*models.UserSearchHitDTO, error) {
-	var allUsers []*models.UserSearchHitDTO
-	var page int64 = 1
-	params := users.NewSearchUsersParams().WithDefaults()
-	client := c.service.Clone()
-
-	for {
-		resp, err := client.Users.SearchUsers(params.WithPage(&page), nil)
-		if err != nil {
-			return nil, err
-		}
-
-		allUsers = append(allUsers, resp.Payload...)
-		if len(resp.Payload) != int(*params.Perpage) {
-			break
-		}
-		page++
-	}
-	return allUsers, nil
-}
-
-func (c *external) createUser(user string) (int64, error) {
-	client := c.service.Clone()
-	n := 64
-	bytes := make([]byte, n)
-	_, err := rand.Read(bytes)
-	if err != nil {
-		return 0, err
-	}
-	pass := string(bytes[:n])
-	u := models.AdminCreateUserForm{
-		Name:     user,
-		Login:    user,
-		Email:    user,
-		Password: pass,
-	}
-	resp, err := client.AdminUsers.AdminCreateUser(&u)
-	if err != nil {
-		return 0, err
-	}
-	return resp.Payload.ID, err
-}
-
 // nolint: gocyclo
 func (c *external) addUserIdsToChanges(d *v1alpha1.OrganizationParameters, changes []UserChange, orgId int64) ([]UserChange, error) {
 	gUserMap := make(map[string]int64)
-	gUsers, err := c.getAllUsers()
+	gUsers, err := c.service.GetAllUsers()
 	if err != nil {
 		return nil, err
 	}
@@ -479,7 +414,7 @@ func (c *external) addUserIdsToChanges(d *v1alpha1.OrganizationParameters, chang
 			return nil, fmt.Errorf("error adding user %s. User does not exist in Grafana", change.User.Email)
 		}
 		if !ok && create {
-			id, err = c.createUser(change.User.Email)
+			id, err = c.service.CreateUser(change.User.Email)
 			if err != nil {
 				return nil, err
 			}
@@ -562,56 +497,18 @@ func (c *external) Delete(ctx context.Context, mg resource.Managed) error {
 		return nil
 	}
 
-	client := c.service.Clone().WithOrgID(*orgID)
-
-	currentUser, err := client.SignedInUser.GetSignedInUser()
+	currentUser, err := c.service.GetSignedInUser()
 	if err != nil {
 		return errors.Wrap(err, errDeleteOrg)
 	}
 
-	if currentUser.Payload.OrgID == *orgID {
-		err = c.switchToLowestOrgId()
+	if currentUser.OrgID == *orgID {
+		err = c.service.SwitchToLowestOrgId()
 	}
 	if err != nil {
 		return errors.Wrap(err, errDeleteOrg)
 	}
 
-	_, err = c.service.WithOrgID(0).Orgs.DeleteOrgByID(*orgID)
+	_, err = c.service.DeleteOrgByID(*orgID)
 	return errors.Wrap(err, errDeleteOrg)
-}
-
-func (c *external) switchToLowestOrgId() error {
-	orgs, err := c.getAllOrgs()
-	if err != nil {
-		return err
-	}
-	var orgId int64
-	orgId = 9999999
-	for _, org := range orgs {
-		if org.ID < orgId {
-			orgId = org.ID
-		}
-	}
-	_, err = c.service.SignedInUser.UserSetUsingOrg(orgId)
-	return err
-}
-
-func (c *external) getAllOrgs() ([]*models.OrgDTO, error) {
-	var allOrgs []*models.OrgDTO
-	var page int64 = 1
-	params := orgs.NewSearchOrgsParams().WithDefaults()
-	client := c.service.Clone()
-	for {
-		resp, err := client.Orgs.SearchOrgs(params.WithPage(&page), nil)
-		if err != nil {
-			return nil, err
-		}
-
-		allOrgs = append(allOrgs, resp.Payload...)
-		if len(resp.Payload) != int(*params.Perpage) {
-			break
-		}
-		page++
-	}
-	return allOrgs, nil
 }

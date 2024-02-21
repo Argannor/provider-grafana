@@ -21,8 +21,6 @@ import (
 	"testing"
 
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
-	grafana "github.com/grafana/grafana-openapi-client-go/client"
-
 	"github.com/google/go-cmp/cmp"
 
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
@@ -40,7 +38,7 @@ import (
 
 func TestObserve(t *testing.T) {
 	type fields struct {
-		service grafana.GrafanaHTTPAPI
+		service GrafanaAPI
 		logger  logging.Logger
 	}
 
