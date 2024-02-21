@@ -11,6 +11,8 @@ Copyright 2022 Upbound Inc.
 package v1alpha1
 
 import (
+	"github.com/crossplane/crossplane-runtime/pkg/reference"
+	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"reflect"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -295,4 +297,18 @@ var (
 
 func init() {
 	SchemeBuilder.Register(&Organization{}, &OrganizationList{})
+}
+
+// OrgId extracts the organization ID from a resource's status.
+func OrgId() reference.ExtractValueFn {
+	return func(mg resource.Managed) string {
+		d, ok := mg.(*Organization)
+		if !ok {
+			return ""
+		}
+		if d.Status.AtProvider.ID == nil {
+			return ""
+		}
+		return *d.Status.AtProvider.ID
+	}
 }

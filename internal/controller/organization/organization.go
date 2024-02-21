@@ -25,6 +25,8 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/argannor/provider-grafana/internal/controller/common"
+
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/google/go-cmp/cmp"
 	"github.com/grafana/grafana-openapi-client-go/models"
@@ -66,13 +68,10 @@ const (
 	errOrgNameChanged = "organization name cannot be changed"
 )
 
-// A NoOpService does nothing.
-type NoOpService struct{}
-
 var (
-	newService = func(config *grafana.TransportConfig) (GrafanaAPI, error) {
+	newService = func(config *grafana.TransportConfig) (common.GrafanaAPI, error) {
 		client := *grafana.NewHTTPClientWithConfig(nil, config)
-		return NewGrafanaAPI(client), nil
+		return common.NewGrafanaAPI(client), nil
 	}
 )
 
@@ -130,7 +129,7 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 type connector struct {
 	kube         client.Client
 	usage        resource.Tracker
-	newServiceFn func(config *grafana.TransportConfig) (GrafanaAPI, error)
+	newServiceFn func(config *grafana.TransportConfig) (common.GrafanaAPI, error)
 	logger       logging.Logger
 }
 
@@ -188,7 +187,7 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 type external struct {
 	// A 'client' used to connect to the external resource API. In practice this
 	// would be something like an AWS SDK client.
-	service GrafanaAPI
+	service common.GrafanaAPI
 	logger  logging.Logger
 }
 
@@ -210,13 +209,14 @@ func (r grafanaRole) SetUsersInParameters(parameters *v1alpha1.OrganizationParam
 	return nil
 }
 
-type ApiError interface {
-	error
-	IsCode(code int) bool
-}
-
 func (c *external) observeActualParameters(cr *v1alpha1.Organization) (*v1alpha1.OrganizationParameters, error) {
-	org, err := c.service.GetOrgByName(*cr.Spec.ForProvider.Name)
+	var org *models.OrgDetailsDTO
+	var err error
+	if cr.Status.AtProvider.OrgID != nil {
+		org, err = c.service.GetOrgById(*cr.Status.AtProvider.OrgID)
+	} else {
+		org, err = c.service.GetOrgByName(*cr.Spec.ForProvider.Name)
+	}
 
 	if err != nil || org == nil {
 		return nil, errors.Wrap(err, errGetOrg)

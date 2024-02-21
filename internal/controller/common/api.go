@@ -1,13 +1,19 @@
-package organization
+package common
 
 import (
 	"crypto/rand"
+
 	grafana "github.com/grafana/grafana-openapi-client-go/client"
 	"github.com/grafana/grafana-openapi-client-go/client/orgs"
 	"github.com/grafana/grafana-openapi-client-go/client/users"
 	"github.com/grafana/grafana-openapi-client-go/models"
 	"github.com/pkg/errors"
 )
+
+type ApiError interface {
+	error
+	IsCode(code int) bool
+}
 
 type GrafanaAPI struct {
 	service grafana.GrafanaHTTPAPI
@@ -90,13 +96,13 @@ func (g *GrafanaAPI) GetAllOrgs() ([]*models.OrgDTO, error) {
 //
 //	error: If an error occurred during the process. It could be due to issues in retrieving all organizations or switching the active organization.
 func (g *GrafanaAPI) SwitchToLowestOrgId() error {
-	orgs, err := g.GetAllOrgs()
+	orgas, err := g.GetAllOrgs()
 	if err != nil {
 		return err
 	}
 	var orgId int64
 	orgId = 9999999
-	for _, org := range orgs {
+	for _, org := range orgas {
 		if org.ID < orgId {
 			orgId = org.ID
 		}
@@ -181,8 +187,24 @@ func (g *GrafanaAPI) GetOrgByName(s string) (*models.OrgDetailsDTO, error) {
 		}
 		return nil, err
 	}
+	if org.IsCode(404) {
+		return nil, nil
+	}
 	return org.Payload, nil
+}
 
+func (g *GrafanaAPI) GetOrgById(id int64) (*models.OrgDetailsDTO, error) {
+	org, err := g.service.Orgs.GetOrgByID(id)
+	if err != nil {
+		if isCode(err, 404) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	if org.IsCode(404) {
+		return nil, nil
+	}
+	return org.Payload, nil
 }
 
 func (g *GrafanaAPI) GetOrgUsers(orgId int64) ([]*models.OrgUserDTO, error) {
@@ -193,6 +215,59 @@ func (g *GrafanaAPI) GetOrgUsers(orgId int64) ([]*models.OrgUserDTO, error) {
 	return response.Payload, err
 }
 
+func (g *GrafanaAPI) GetDataSourceById(orgId int64, id string) (*models.DataSource, error) {
+	response, err := g.service.Clone().WithOrgID(orgId).Datasources.GetDataSourceByID(id)
+	if err != nil {
+		if isCode(err, 404) {
+			return nil, nil
+		}
+	}
+	if response.IsCode(404) || response == nil {
+		return nil, nil
+	}
+	return response.Payload, err
+}
+
+func (g *GrafanaAPI) GetDataSourceByName(orgId int64, name string) (*models.DataSource, error) {
+	response, err := g.service.Clone().WithOrgID(orgId).Datasources.GetDataSourceByName(name)
+	if err != nil {
+		if isCode(err, 404) {
+			return nil, nil
+		}
+	}
+	if response.IsCode(404) || response == nil {
+		return nil, nil
+	}
+	return response.Payload, err
+}
+
+func (g *GrafanaAPI) CreateDataSource(orgId int64, command *models.AddDataSourceCommand) (*models.AddDataSourceOKBody, error) {
+	response, err := g.service.Clone().WithOrgID(orgId).Datasources.AddDataSource(command)
+	if err != nil {
+		return nil, err
+	}
+	return response.Payload, err
+}
+
+func (g *GrafanaAPI) UpdateDataSource(orgId int64, id string, command *models.UpdateDataSourceCommand) (*models.UpdateDataSourceByIDOKBody, error) {
+	response, err := g.service.Clone().WithOrgID(orgId).Datasources.UpdateDataSourceByID(id, command)
+	if err != nil {
+		return nil, err
+	}
+	return response.Payload, err
+}
+
+func (g *GrafanaAPI) DeleteDataSource(orgId int64, id string) (*models.SuccessResponseBody, error) {
+	response, err := g.service.Clone().WithOrgID(orgId).Datasources.DeleteDataSourceByID(id)
+	if err != nil {
+		return nil, err
+
+	}
+	return response.Payload, err
+
+}
+
+// nolint: unparam
 func isCode(err error, code int) bool {
 	if err == nil {
 		return false

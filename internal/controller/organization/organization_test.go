@@ -20,6 +20,8 @@ import (
 	"context"
 	"testing"
 
+	"github.com/argannor/provider-grafana/internal/controller/common"
+
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/google/go-cmp/cmp"
 
@@ -38,7 +40,7 @@ import (
 
 func TestObserve(t *testing.T) {
 	type fields struct {
-		service GrafanaAPI
+		service common.GrafanaAPI
 		logger  logging.Logger
 	}
 
