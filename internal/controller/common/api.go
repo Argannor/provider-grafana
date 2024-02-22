@@ -2,8 +2,10 @@ package common
 
 import (
 	"crypto/rand"
+	"strconv"
 
 	"github.com/grafana/grafana-openapi-client-go/client/folders"
+	"github.com/grafana/grafana-openapi-client-go/client/search"
 
 	grafana "github.com/grafana/grafana-openapi-client-go/client"
 	"github.com/grafana/grafana-openapi-client-go/client/orgs"
@@ -250,6 +252,36 @@ func (g *GrafanaAPI) CreateOrUpdateDashboard(orgId int64, command *models.SaveDa
 func (g *GrafanaAPI) GetDashboardByUid(orgId int64, uid string) (*models.DashboardFullWithMeta, error) {
 	response, err := g.service.Clone().WithOrgID(orgId).Dashboards.GetDashboardByUID(uid)
 	return orNilOnNotFound[models.DashboardFullWithMeta](&response, err)
+}
+
+func (g *GrafanaAPI) GetDashboardByName(orgId int64, name string, folder *string) (*models.DashboardFullWithMeta, error) {
+	dashboardType := "dash-db"
+	params := &search.SearchParams{
+		Type:  &dashboardType,
+		Query: &name,
+	}
+	setFolderIdIfNotNull(folder, params)
+	response, err := g.service.Clone().WithOrgID(orgId).Search.Search(params)
+	if err != nil {
+		return nil, err
+	}
+	if len(response.Payload) == 0 {
+		return nil, nil
+	}
+	uid := response.Payload[0].UID
+	return g.GetDashboardByUid(orgId, uid)
+}
+
+func setFolderIdIfNotNull(folder *string, params *search.SearchParams) {
+	if folder == nil {
+		return
+	}
+	folderId, err := strconv.ParseInt(*folder, 10, 64)
+	if err == nil {
+		params.FolderIds = []int64{folderId}
+	} else {
+		params.FolderUIDs = []string{*folder}
+	}
 }
 
 func (g *GrafanaAPI) DeleteDashboard(orgId int64, uid string) (*models.DeleteDashboardByUIDOKBody, error) {

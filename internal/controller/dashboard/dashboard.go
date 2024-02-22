@@ -57,7 +57,7 @@ const (
 	errGetCreds     = "cannot get credentials"
 	errCredsFormat  = "credentials are not formatted as base64 encoded 'username:password' pair"
 	errOrgIdNotInt  = "orgId is not an integer"
-	errOrgChange    = "cannot change Organization"
+	errNoTitle      = "configJson does not contain a title for the dashboard"
 
 	errNewClient             = "cannot create new Service"
 	errFailedGetDashboard    = "cannot get Dashboard from Grafana API"
@@ -245,13 +245,12 @@ func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 	}
 	setFolderId(spec.Folder, command)
 
-	response, err := c.service.CreateOrUpdateDashboard(orgId, command)
+	_, err = c.service.CreateOrUpdateDashboard(orgId, command)
 
 	if err != nil {
 		return managed.ExternalCreation{}, errors.Wrap(err, errFailedCreateDashboard)
 	}
 
-	copyToStatus(response, cr, *spec.OrgID)
 	cr.Status.AtProvider.ConfigJSON = cr.Spec.ForProvider.ConfigJSON
 
 	return managed.ExternalCreation{
@@ -294,10 +293,6 @@ func (c *external) Update(ctx context.Context, mg resource.Managed) (managed.Ext
 	cr, ok := mg.(*v1alpha1.Dashboard)
 	if !ok {
 		return managed.ExternalUpdate{}, errors.New(errNotDashboard)
-	}
-
-	if *cr.Spec.ForProvider.OrgID != *cr.Status.AtProvider.OrgID {
-		return managed.ExternalUpdate{}, errors.New(errOrgChange)
 	}
 
 	// orgId as int64
@@ -351,7 +346,7 @@ func (c *external) Delete(ctx context.Context, mg resource.Managed) error {
 		return errors.Wrap(err, errOrgIdNotInt)
 	}
 
-	_, err = c.service.DeleteDashboard(orgId, *cr.Status.AtProvider.ID)
+	_, err = c.service.DeleteDashboard(orgId, *cr.Status.AtProvider.UID)
 
 	return errors.Wrap(err, errFailedDeleteDashboard)
 }
@@ -399,8 +394,8 @@ func dashboardInDashboardFullWithMetaFromJSON(dashboard *models.JSON) (*dashboar
 	}
 	return &dashboardInDashboardFullWithMeta{
 		UID:     asMap["uid"].(string),
-		ID:      asMap["id"].(int64),
-		Version: asMap["version"].(int64),
+		ID:      common.AsInt64(asMap["id"]),
+		Version: common.AsInt64(asMap["version"]),
 	}, nil
 }
 
@@ -410,7 +405,16 @@ func isUpToDate(cr *v1alpha1.Dashboard, atGrafana *models.DashboardFullWithMeta)
 	upToDate := true
 
 	upToDate = upToDate && common.CompareOptional(spec.Folder, atGrafana.Meta.FolderUID, "")
-	upToDate = upToDate && common.CompareOptional(spec.ConfigJSON, *cr.Status.AtProvider.ConfigJSON, "")
+
+	if cr.Status.AtProvider.UID != nil {
+		// if the UID is still nil, we didn't have the chance to set the status yet, so we can't compare
+		upToDate = upToDate && cr.Status.AtProvider.ConfigJSON != nil && common.CompareOptional(spec.ConfigJSON, *cr.Status.AtProvider.ConfigJSON, "")
+	} else {
+		// unfortunately we can't set it in the Create method, so we need to do it here, and only if it is during
+		// observation after creation - otherwise it would interfere with change detection. During Update, the
+		// status will be updated accordingly.
+		cr.Status.AtProvider.ConfigJSON = cr.Spec.ForProvider.ConfigJSON
+	}
 
 	return upToDate
 }
@@ -419,6 +423,14 @@ func (c *external) GetDashboard(orgId int64, cr *v1alpha1.Dashboard) (*models.Da
 	if cr.Status.AtProvider.UID != nil {
 		return c.service.GetDashboardByUid(orgId, *cr.Status.AtProvider.UID)
 	} else {
-		return nil, nil
+		configJson, err := parseConfigJson(cr.Spec.ForProvider.ConfigJSON)
+		if err != nil {
+			return nil, err
+		}
+		title, found := configJson["title"]
+		if !found {
+			return nil, errors.New(errNoTitle)
+		}
+		return c.service.GetDashboardByName(orgId, title.(string), cr.Spec.ForProvider.Folder)
 	}
 }

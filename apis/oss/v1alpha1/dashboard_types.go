@@ -145,6 +145,7 @@ type DashboardParameters struct {
 	// +crossplane:generate:reference:refFieldName=OrganizationRef
 	// +crossplane:generate:reference:selectorFieldName=OrganizationSelector
 	// +crossplane:generate:reference:extractor=github.com/argannor/provider-grafana/apis/oss/v1alpha1.OrgId()
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="Name is immutable"
 	// +kubebuilder:validation:Optional
 	OrgID *string `json:"orgId,omitempty" tf:"org_id,omitempty"`
 
@@ -203,16 +204,25 @@ type Dashboard struct {
 	Status DashboardStatus `json:"status,omitempty"`
 }
 
-// DataSource type metadata.
+// +kubebuilder:object:root=true
+
+// DashboardList contains a list of Dashboards
+type DashboardList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata,omitempty"`
+	Items           []Dashboard `json:"items"`
+}
+
+// Dashboard type metadata.
 var (
-	DashboardKind             = reflect.TypeOf(DataSource{}).Name()
+	DashboardKind             = reflect.TypeOf(Dashboard{}).Name()
 	DashboardGroupKind        = schema.GroupKind{Group: Group, Kind: DashboardKind}.String()
 	DashboardKindAPIVersion   = DashboardKind + "." + SchemeGroupVersion.String()
 	DashboardGroupVersionKind = SchemeGroupVersion.WithKind(DashboardKind)
 )
 
 func init() {
-	SchemeBuilder.Register(&DataSource{}, &DataSourceList{})
+	SchemeBuilder.Register(&Dashboard{}, &DashboardList{})
 }
 
 func UIDExtractor() reference.ExtractValueFn {

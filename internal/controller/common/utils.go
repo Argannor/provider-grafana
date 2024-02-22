@@ -112,3 +112,20 @@ func CompareMapKeys[T1, T2 comparable](desired map[string]T1, actual map[string]
 	}
 	return true
 }
+
+func AsInt64(value interface{}) int64 {
+	switch v := value.(type) {
+	case int:
+		return int64(v)
+	case int32:
+		return int64(v)
+	case int64:
+		return v
+	case float32:
+		return int64(v)
+	case float64:
+		return int64(v)
+	default:
+		return 0
+	}
+}
