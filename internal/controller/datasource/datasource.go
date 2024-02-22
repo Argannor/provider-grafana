@@ -383,7 +383,6 @@ func copyToStatus(response *models.DataSource, cr *v1alpha1.DataSource) {
 
 // nolint: gocyclo
 func isUpToDate(cr *v1alpha1.DataSource, atGrafana *models.DataSource, orgId int64, httpHeaderSecret *kubeV1.Secret, secureJsonDataEncoded *string) (bool, error) {
-	// These fmt statements should be removed in the real implementation.
 	spec := cr.Spec.ForProvider
 	upToDate := true
 

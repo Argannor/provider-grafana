@@ -3,6 +3,8 @@ package common
 import (
 	"crypto/rand"
 
+	"github.com/grafana/grafana-openapi-client-go/client/folders"
+
 	grafana "github.com/grafana/grafana-openapi-client-go/client"
 	"github.com/grafana/grafana-openapi-client-go/client/orgs"
 	"github.com/grafana/grafana-openapi-client-go/client/users"
@@ -252,6 +254,45 @@ func (g *GrafanaAPI) GetDashboardByUid(orgId int64, uid string) (*models.Dashboa
 
 func (g *GrafanaAPI) DeleteDashboard(orgId int64, uid string) (*models.DeleteDashboardByUIDOKBody, error) {
 	response, err := g.service.Clone().WithOrgID(orgId).Dashboards.DeleteDashboardByUID(uid)
+	if err != nil {
+		return nil, err
+	}
+	return response.Payload, err
+}
+
+func (g *GrafanaAPI) GetFolderByUid(orgId int64, uid string) (*models.Folder, error) {
+	response, err := g.service.Clone().WithOrgID(orgId).Folders.GetFolderByUID(uid)
+	return orNilOnNotFound[models.Folder](&response, err)
+}
+
+func (g *GrafanaAPI) GetFolderById(orgId int64, id int64) (*models.Folder, error) {
+	response, err := g.service.Clone().WithOrgID(orgId).Folders.GetFolderByID(id)
+	return orNilOnNotFound[models.Folder](&response, err)
+}
+
+func (g *GrafanaAPI) CreateFolder(orgId int64, command *models.CreateFolderCommand) (*models.Folder, error) {
+	response, err := g.service.Clone().WithOrgID(orgId).Folders.CreateFolder(command)
+	if err != nil {
+		return nil, err
+	}
+	return response.Payload, err
+}
+
+func (g *GrafanaAPI) UpdateFolder(orgId int64, uid string, command *models.UpdateFolderCommand) (*models.Folder, error) {
+	response, err := g.service.Clone().WithOrgID(orgId).Folders.UpdateFolder(uid, command)
+	if err != nil {
+		return nil, err
+	}
+	return response.Payload, err
+}
+
+func (g *GrafanaAPI) DeleteFolder(orgId int64, uid string) (*models.DeleteFolderOKBody, error) {
+	deleteRules := true
+	params := folders.DeleteFolderParams{
+		FolderUID:        uid,
+		ForceDeleteRules: &deleteRules,
+	}
+	response, err := g.service.Clone().WithOrgID(orgId).Folders.DeleteFolder(&params)
 	if err != nil {
 		return nil, err
 	}

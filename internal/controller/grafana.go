@@ -19,6 +19,7 @@ package controller
 import (
 	"github.com/argannor/provider-grafana/internal/controller/dashboard"
 	"github.com/argannor/provider-grafana/internal/controller/datasource"
+	"github.com/argannor/provider-grafana/internal/controller/folder"
 	"github.com/crossplane/crossplane-runtime/pkg/controller"
 	ctrl "sigs.k8s.io/controller-runtime"
 
@@ -31,9 +32,10 @@ import (
 func Setup(mgr ctrl.Manager, o controller.Options) error {
 	for _, setup := range []func(ctrl.Manager, controller.Options) error{
 		config.Setup,
-		organization.Setup,
-		datasource.Setup,
 		dashboard.Setup,
+		datasource.Setup,
+		folder.Setup,
+		organization.Setup,
 	} {
 		if err := setup(mgr, o); err != nil {
 			return err
