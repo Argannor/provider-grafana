@@ -57,6 +57,7 @@ const (
 	errCredsFormat   = "credentials are not formatted as base64 encoded 'username:password' pair"
 	errOrgIdNotInt   = "orgId is not an integer"
 	errNameChange    = "cannot change name of DataSource"
+	errOrgChange     = "cannot change Organization"
 
 	errNewClient              = "cannot create new Service"
 	errFailedGetDataSource    = "cannot get DataSource from Grafana API"
@@ -65,7 +66,6 @@ const (
 	errFailedUpdateDataSource = "cannot update DataSource"
 	errFailedDeleteDataSource = "cannot delete DataSource"
 	errGetSecret              = "cannot get Secret"
-	errGetSecureJsonData      = "cannot get referenced SecureJSONDataEncodedSecret"
 
 	errUnmarshalJson       = "cannot unmarshal JSON data"
 	errUnmarshalSecureJson = "cannot unmarshal secure JSON data"
@@ -256,26 +256,26 @@ func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 	}
 
 	response, err := c.service.CreateDataSource(orgId, &models.AddDataSourceCommand{
-		Access:          models.DsAccess(defaultString(spec.AccessMode, "proxy")),
-		BasicAuth:       defaultBool(spec.BasicAuthEnabled, false),
-		BasicAuthUser:   defaultString(spec.BasicAuthUsername, ""),
-		Database:        defaultString(spec.DatabaseName, ""),
-		IsDefault:       defaultBool(spec.IsDefault, false),
+		Access:          models.DsAccess(common.DefaultString(spec.AccessMode, "proxy")),
+		BasicAuth:       common.DefaultBool(spec.BasicAuthEnabled, false),
+		BasicAuthUser:   common.DefaultString(spec.BasicAuthUsername, ""),
+		Database:        common.DefaultString(spec.DatabaseName, ""),
+		IsDefault:       common.DefaultBool(spec.IsDefault, false),
 		JSONData:        *jsonData,
-		Name:            defaultString(spec.Name, cr.Name),
+		Name:            common.DefaultString(spec.Name, cr.Name),
 		SecureJSONData:  *secureJsonData,
-		Type:            defaultString(spec.Type, ""),
-		UID:             defaultString(spec.UID, ""),
-		URL:             defaultString(spec.URL, ""),
-		User:            defaultString(spec.Username, ""),
+		Type:            common.DefaultString(spec.Type, ""),
+		UID:             common.DefaultString(spec.UID, ""),
+		URL:             common.DefaultString(spec.URL, ""),
+		User:            common.DefaultString(spec.Username, ""),
 		WithCredentials: false,
 	})
-
-	copyToStatus(response.Datasource, cr)
 
 	if err != nil {
 		return managed.ExternalCreation{}, errors.Wrap(err, errFailedCreateDataSource)
 	}
+
+	copyToStatus(response.Datasource, cr)
 
 	return managed.ExternalCreation{
 		// Optionally return any details that may be required to connect to the
@@ -293,6 +293,9 @@ func (c *external) Update(ctx context.Context, mg resource.Managed) (managed.Ext
 	if *cr.Spec.ForProvider.Name != *cr.Status.AtProvider.Name {
 		return managed.ExternalUpdate{}, errors.New(errNameChange)
 	}
+	if *cr.Spec.ForProvider.OrgID != *cr.Status.AtProvider.OrgID {
+		return managed.ExternalUpdate{}, errors.New(errOrgChange)
+	}
 
 	// orgId as int64
 	spec := cr.Spec.ForProvider
@@ -306,19 +309,19 @@ func (c *external) Update(ctx context.Context, mg resource.Managed) (managed.Ext
 		return managed.ExternalUpdate{}, err
 	}
 
-	response, err := c.service.UpdateDataSource(orgId, *cr.Status.AtProvider.ID, &models.UpdateDataSourceCommand{
-		Access:          models.DsAccess(defaultString(spec.AccessMode, "proxy")),
-		BasicAuth:       defaultBool(spec.BasicAuthEnabled, false),
-		BasicAuthUser:   defaultString(spec.BasicAuthUsername, ""),
-		Database:        defaultString(spec.DatabaseName, ""),
-		IsDefault:       defaultBool(spec.IsDefault, false),
+	response, err := c.service.UpdateDataSource(orgId, getId(cr), &models.UpdateDataSourceCommand{
+		Access:          models.DsAccess(common.DefaultString(spec.AccessMode, "proxy")),
+		BasicAuth:       common.DefaultBool(spec.BasicAuthEnabled, false),
+		BasicAuthUser:   common.DefaultString(spec.BasicAuthUsername, ""),
+		Database:        common.DefaultString(spec.DatabaseName, ""),
+		IsDefault:       common.DefaultBool(spec.IsDefault, false),
 		JSONData:        *jsonData,
-		Name:            defaultString(spec.Name, cr.Name),
+		Name:            common.DefaultString(spec.Name, cr.Name),
 		SecureJSONData:  *secureJsonData,
-		Type:            defaultString(spec.Type, ""),
-		UID:             defaultString(spec.UID, ""),
-		URL:             defaultString(spec.URL, ""),
-		User:            defaultString(spec.Username, ""),
+		Type:            common.DefaultString(spec.Type, ""),
+		UID:             common.DefaultString(spec.UID, ""),
+		URL:             common.DefaultString(spec.URL, ""),
+		User:            common.DefaultString(spec.Username, ""),
 		WithCredentials: false,
 	})
 
@@ -348,15 +351,24 @@ func (c *external) Delete(ctx context.Context, mg resource.Managed) error {
 		return errors.Wrap(err, errOrgIdNotInt)
 	}
 
-	_, err = c.service.DeleteDataSource(orgId, *cr.Status.AtProvider.ID)
+	_, err = c.service.DeleteDataSource(orgId, getId(cr))
 
 	return errors.Wrap(err, errFailedDeleteDataSource)
+}
+
+func getId(cr *v1alpha1.DataSource) string {
+	if cr.Status.AtProvider.ID != nil {
+		return strings.Split(*cr.Status.AtProvider.ID, ":")[1]
+	}
+	return ""
 }
 
 func copyToStatus(response *models.DataSource, cr *v1alpha1.DataSource) {
 	dataSourceId := fmt.Sprintf("%d", response.ID)
 	orgIdAsString := fmt.Sprintf("%d", response.OrgID)
-	cr.Status.AtProvider.ID = &dataSourceId
+	// the original grafana-provider has this ID format of "orgId:dataSourceId" so we keep it for compatibility
+	id := fmt.Sprintf("%s:%s", orgIdAsString, dataSourceId)
+	cr.Status.AtProvider.ID = &id
 	cr.Status.AtProvider.OrgID = &orgIdAsString
 	cr.Status.AtProvider.UID = &response.UID
 	cr.Status.AtProvider.Name = &response.Name
@@ -383,8 +395,8 @@ func isUpToDate(cr *v1alpha1.DataSource, atGrafana *models.DataSource, orgId int
 	if err != nil {
 		return false, err
 	}
-	httpHeaderMap := secretToStringMap(httpHeaderSecret)
-	jsonData, secureJSONData := jsonDataWithHeaders(jd, sjd, httpHeaderMap)
+	httpHeaderMap := common.SecretToStringMap(httpHeaderSecret)
+	jsonData, secureJSONData := common.JsonDataWithHeaders(jd, sjd, httpHeaderMap)
 
 	name := ""
 	if spec.Name == nil {
@@ -395,18 +407,18 @@ func isUpToDate(cr *v1alpha1.DataSource, atGrafana *models.DataSource, orgId int
 
 	upToDate = upToDate && name == atGrafana.Name
 	upToDate = upToDate && *spec.Type == atGrafana.Type
-	upToDate = upToDate && compareOptional(spec.AccessMode, string(atGrafana.Access), "proxy")
-	upToDate = upToDate && compareOptional(spec.BasicAuthEnabled, atGrafana.BasicAuth, false)
-	upToDate = upToDate && compareOptional(spec.BasicAuthUsername, atGrafana.BasicAuthUser, "")
-	upToDate = upToDate && compareOptional(spec.DatabaseName, atGrafana.Database, "")
-	upToDate = upToDate && compareOptional(spec.IsDefault, atGrafana.IsDefault, false)
+	upToDate = upToDate && common.CompareOptional(spec.AccessMode, string(atGrafana.Access), "proxy")
+	upToDate = upToDate && common.CompareOptional(spec.BasicAuthEnabled, atGrafana.BasicAuth, false)
+	upToDate = upToDate && common.CompareOptional(spec.BasicAuthUsername, atGrafana.BasicAuthUser, "")
+	upToDate = upToDate && common.CompareOptional(spec.DatabaseName, atGrafana.Database, "")
+	upToDate = upToDate && common.CompareOptional(spec.IsDefault, atGrafana.IsDefault, false)
 	upToDate = upToDate && (spec.UID == nil || (*spec.UID == atGrafana.UID))
-	upToDate = upToDate && compareOptional(spec.URL, atGrafana.URL, "")
-	upToDate = upToDate && compareOptional(spec.Username, atGrafana.User, "")
+	upToDate = upToDate && common.CompareOptional(spec.URL, atGrafana.URL, "")
+	upToDate = upToDate && common.CompareOptional(spec.Username, atGrafana.User, "")
 	upToDate = upToDate && orgId == atGrafana.OrgID
-	upToDate = upToDate && compareMap(jsonData, atGrafana.JSONData.(map[string]interface{}))
+	upToDate = upToDate && common.CompareMap(jsonData, atGrafana.JSONData.(map[string]interface{}))
 	// secure fields are not returned by the API, so we can't compare them
-	upToDate = upToDate && compareMapKeys(secureJSONData, atGrafana.SecureJSONFields)
+	upToDate = upToDate && common.CompareMapKeys(secureJSONData, atGrafana.SecureJSONFields)
 	// TODO: since the values are not included in the response, we can't check if they need to be updated. For this we
 	//   would need to store a hash of the secret data in the status and compare against that. It needs to be stable
 	//   against reordering of the keys and the values.
@@ -416,7 +428,7 @@ func isUpToDate(cr *v1alpha1.DataSource, atGrafana *models.DataSource, orgId int
 
 func (c *external) GetDataSource(orgId int64, cr *v1alpha1.DataSource) (*models.DataSource, error) {
 	if cr.Status.AtProvider.ID != nil {
-		return c.service.GetDataSourceById(orgId, *cr.Status.AtProvider.ID)
+		return c.service.GetDataSourceById(orgId, getId(cr))
 	} else {
 		return c.service.GetDataSourceByName(orgId, *cr.Spec.ForProvider.Name)
 	}
@@ -448,8 +460,8 @@ func (c *external) MakeJsonData(ctx context.Context, cr *v1alpha1.DataSource) (*
 	if err != nil {
 		return nil, nil, err
 	}
-	httpHeaderMap := secretToStringMap(httpHeaderSecret)
-	jsonData, secureJSONData = jsonDataWithHeaders(jsonData, secureJSONData, httpHeaderMap)
+	httpHeaderMap := common.SecretToStringMap(httpHeaderSecret)
+	jsonData, secureJSONData = common.JsonDataWithHeaders(jsonData, secureJSONData, httpHeaderMap)
 	return &jsonData, &secureJSONData, err
 }
 

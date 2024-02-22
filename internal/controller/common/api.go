@@ -15,6 +15,11 @@ type ApiError interface {
 	IsCode(code int) bool
 }
 
+type ApiResponse[R interface{}] interface {
+	IsCode(code int) bool
+	GetPayload() *R
+}
+
 type GrafanaAPI struct {
 	service grafana.GrafanaHTTPAPI
 }
@@ -180,31 +185,13 @@ func (g *GrafanaAPI) AdminCreateUser(user *models.AdminCreateUserForm) (*models.
 }
 
 func (g *GrafanaAPI) GetOrgByName(s string) (*models.OrgDetailsDTO, error) {
-	org, err := g.service.Orgs.GetOrgByName(s)
-	if err != nil {
-		if isCode(err, 404) {
-			return nil, nil
-		}
-		return nil, err
-	}
-	if org.IsCode(404) {
-		return nil, nil
-	}
-	return org.Payload, nil
+	response, err := g.service.Orgs.GetOrgByName(s)
+	return orNilOnNotFound[models.OrgDetailsDTO](&response, err)
 }
 
 func (g *GrafanaAPI) GetOrgById(id int64) (*models.OrgDetailsDTO, error) {
-	org, err := g.service.Orgs.GetOrgByID(id)
-	if err != nil {
-		if isCode(err, 404) {
-			return nil, nil
-		}
-		return nil, err
-	}
-	if org.IsCode(404) {
-		return nil, nil
-	}
-	return org.Payload, nil
+	response, err := g.service.Orgs.GetOrgByID(id)
+	return orNilOnNotFound[models.OrgDetailsDTO](&response, err)
 }
 
 func (g *GrafanaAPI) GetOrgUsers(orgId int64) ([]*models.OrgUserDTO, error) {
@@ -217,28 +204,12 @@ func (g *GrafanaAPI) GetOrgUsers(orgId int64) ([]*models.OrgUserDTO, error) {
 
 func (g *GrafanaAPI) GetDataSourceById(orgId int64, id string) (*models.DataSource, error) {
 	response, err := g.service.Clone().WithOrgID(orgId).Datasources.GetDataSourceByID(id)
-	if err != nil {
-		if isCode(err, 404) {
-			return nil, nil
-		}
-	}
-	if response.IsCode(404) || response == nil {
-		return nil, nil
-	}
-	return response.Payload, err
+	return orNilOnNotFound[models.DataSource](&response, err)
 }
 
 func (g *GrafanaAPI) GetDataSourceByName(orgId int64, name string) (*models.DataSource, error) {
 	response, err := g.service.Clone().WithOrgID(orgId).Datasources.GetDataSourceByName(name)
-	if err != nil {
-		if isCode(err, 404) {
-			return nil, nil
-		}
-	}
-	if response.IsCode(404) || response == nil {
-		return nil, nil
-	}
-	return response.Payload, err
+	return orNilOnNotFound[models.DataSource](&response, err)
 }
 
 func (g *GrafanaAPI) CreateDataSource(orgId int64, command *models.AddDataSourceCommand) (*models.AddDataSourceOKBody, error) {
@@ -264,7 +235,40 @@ func (g *GrafanaAPI) DeleteDataSource(orgId int64, id string) (*models.SuccessRe
 
 	}
 	return response.Payload, err
+}
 
+func (g *GrafanaAPI) CreateOrUpdateDashboard(orgId int64, command *models.SaveDashboardCommand) (*models.PostDashboardOKBody, error) {
+	response, err := g.service.Clone().WithOrgID(orgId).Dashboards.PostDashboard(command)
+	if err != nil {
+		return nil, err
+	}
+	return response.Payload, err
+}
+
+func (g *GrafanaAPI) GetDashboardByUid(orgId int64, uid string) (*models.DashboardFullWithMeta, error) {
+	response, err := g.service.Clone().WithOrgID(orgId).Dashboards.GetDashboardByUID(uid)
+	return orNilOnNotFound[models.DashboardFullWithMeta](&response, err)
+}
+
+func (g *GrafanaAPI) DeleteDashboard(orgId int64, uid string) (*models.DeleteDashboardByUIDOKBody, error) {
+	response, err := g.service.Clone().WithOrgID(orgId).Dashboards.DeleteDashboardByUID(uid)
+	if err != nil {
+		return nil, err
+	}
+	return response.Payload, err
+}
+
+func orNilOnNotFound[R interface{}, T ApiResponse[R]](response *T, err error) (*R, error) {
+	if err != nil && isCode(err, 404) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	if (*response).IsCode(404) || response == nil {
+		return nil, nil
+	}
+	return (*response).GetPayload(), err
 }
 
 // nolint: unparam

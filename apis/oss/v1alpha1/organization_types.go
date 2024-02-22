@@ -11,9 +11,11 @@ Copyright 2022 Upbound Inc.
 package v1alpha1
 
 import (
+	"reflect"
+
+	"github.com/crossplane/crossplane-runtime/pkg/fieldpath"
 	"github.com/crossplane/crossplane-runtime/pkg/reference"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
-	"reflect"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -302,13 +304,19 @@ func init() {
 // OrgId extracts the organization ID from a resource's status.
 func OrgId() reference.ExtractValueFn {
 	return func(mg resource.Managed) string {
-		d, ok := mg.(*Organization)
-		if !ok {
+		paved, err := fieldpath.PaveObject(mg)
+		if err != nil {
 			return ""
 		}
-		if d.Status.AtProvider.ID == nil {
+		r, err := paved.GetString("spec.forProvider.id")
+		if err == nil && r != "" {
+			return r
+		}
+		// UID is optional, so it can be in atProvider if it's not in forProvider
+		r, err = paved.GetString("status.atProvider.id")
+		if err != nil {
 			return ""
 		}
-		return *d.Status.AtProvider.ID
+		return r
 	}
 }

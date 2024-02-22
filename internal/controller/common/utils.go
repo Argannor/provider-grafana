@@ -1,39 +1,13 @@
-package datasource
+package common
 
 import (
-	"context"
 	"fmt"
 	"reflect"
 
-	v1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
-	"github.com/crossplane/crossplane-runtime/pkg/resource"
-
-	"github.com/pkg/errors"
 	kubeV1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/util/json"
 )
 
-func makeJSONData(data *string) (map[string]interface{}, error) {
-	jd := make(map[string]interface{})
-	if data != nil && *data != "" {
-		if err := json.Unmarshal([]byte(*data), &jd); err != nil {
-			return nil, errors.Wrap(err, errUnmarshalJson)
-		}
-	}
-	return jd, nil
-}
-
-func makeSecureJSONData(data *string) (map[string]string, error) {
-	sjd := make(map[string]string)
-	if data != nil && *data != "" {
-		if err := json.Unmarshal([]byte(*data), &sjd); err != nil {
-			return nil, errors.Wrap(err, errUnmarshalSecureJson)
-		}
-	}
-	return sjd, nil
-}
-
-func secretToStringMap(secret *kubeV1.Secret) map[string]string {
+func SecretToStringMap(secret *kubeV1.Secret) map[string]string {
 	sjd := make(map[string]string)
 	if secret == nil {
 		return sjd
@@ -44,7 +18,7 @@ func secretToStringMap(secret *kubeV1.Secret) map[string]string {
 	return sjd
 }
 
-func jsonDataWithHeaders(inputJSONData map[string]interface{}, inputSecureJSONData map[string]string, headers map[string]string) (map[string]interface{}, map[string]string) {
+func JsonDataWithHeaders(inputJSONData map[string]interface{}, inputSecureJSONData map[string]string, headers map[string]string) (map[string]interface{}, map[string]string) {
 	jsonData := make(map[string]interface{})
 	for name, value := range inputJSONData {
 		jsonData[name] = value
@@ -65,7 +39,7 @@ func jsonDataWithHeaders(inputJSONData map[string]interface{}, inputSecureJSONDa
 	return jsonData, secureJSONData
 }
 
-func defaultString(s *string, def string) string {
+func DefaultString(s *string, def string) string {
 	if s == nil {
 		return def
 	}
@@ -73,14 +47,14 @@ func defaultString(s *string, def string) string {
 }
 
 // nolint: unparam
-func defaultBool(b *bool, def bool) bool {
+func DefaultBool(b *bool, def bool) bool {
 	if b == nil {
 		return def
 	}
 	return *b
 }
 
-func compareOptional[K comparable](desired *K, actual K, defaultValue K) bool {
+func CompareOptional[K comparable](desired *K, actual K, defaultValue K) bool {
 	var expected K
 	if desired == nil {
 		expected = defaultValue
@@ -90,7 +64,7 @@ func compareOptional[K comparable](desired *K, actual K, defaultValue K) bool {
 	return actual == expected
 }
 
-func compareMap(desired map[string]interface{}, actual map[string]interface{}) bool {
+func CompareMap(desired map[string]interface{}, actual map[string]interface{}) bool {
 	if len(desired) != len(actual) {
 		return false
 	}
@@ -107,7 +81,7 @@ func compareMap(desired map[string]interface{}, actual map[string]interface{}) b
 		}
 		typeA := reflect.TypeOf(desired)
 		if typeA == reflect.TypeOf(map[string]interface{}{}) {
-			if !compareMap(value.(map[string]interface{}), actual[key].(map[string]interface{})) {
+			if !CompareMap(value.(map[string]interface{}), actual[key].(map[string]interface{})) {
 				return false
 			}
 		}
@@ -127,7 +101,7 @@ func compareComparable(desired interface{}, actual interface{}) (bool, bool) {
 	return false, false
 }
 
-func compareMapKeys[T1, T2 comparable](desired map[string]T1, actual map[string]T2) bool {
+func CompareMapKeys[T1, T2 comparable](desired map[string]T1, actual map[string]T2) bool {
 	if len(desired) != len(actual) {
 		return false
 	}
@@ -137,15 +111,4 @@ func compareMapKeys[T1, T2 comparable](desired map[string]T1, actual map[string]
 		}
 	}
 	return true
-}
-
-func (c *external) getValueFromSecret(ctx context.Context, selector v1.SecretKeySelector) (*string, error) {
-	secret, err := c.getSecret(ctx, selector.SecretReference)
-	if resource.IgnoreNotFound(err) != nil {
-		return nil, errors.Wrap(err, errGetSecret)
-	}
-
-	pwRaw := secret.Data[selector.Key]
-	strValue := string(pwRaw)
-	return &strValue, nil
 }
