@@ -182,6 +182,7 @@ type DataSourceParameters struct {
 	// +crossplane:generate:reference:refFieldName=OrganizationRef
 	// +crossplane:generate:reference:selectorFieldName=OrganizationSelector
 	// +crossplane:generate:reference:extractor=github.com/argannor/provider-grafana/apis/oss/v1alpha1.OrgId()
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="Name is immutable"
 	// +kubebuilder:validation:Optional
 	OrgID *string `json:"orgId,omitempty" tf:"org_id,omitempty"`
 

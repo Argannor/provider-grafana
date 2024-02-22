@@ -65,7 +65,6 @@ const (
 	errDeleteOrg      = "cannot delete organization"
 	errOrgNotFound    = "cannot find organization"
 	errUpdateUser     = "cannot update user"
-	errOrgNameChanged = "organization name cannot be changed"
 )
 
 var (
@@ -209,30 +208,17 @@ func (r grafanaRole) SetUsersInParameters(parameters *v1alpha1.OrganizationParam
 	return nil
 }
 
-func (c *external) observeActualParameters(cr *v1alpha1.Organization) (*v1alpha1.OrganizationParameters, error) {
-	var org *models.OrgDetailsDTO
-	var err error
-	if cr.Status.AtProvider.OrgID != nil {
-		org, err = c.service.GetOrgById(*cr.Status.AtProvider.OrgID)
-	} else {
-		org, err = c.service.GetOrgByName(*cr.Spec.ForProvider.Name)
-	}
+func (c *external) observeActualParameters(cr *v1alpha1.Organization) (*v1alpha1.OrganizationParameters, int64, error) {
+	org, err := c.service.GetOrgByName(*cr.Spec.ForProvider.Name)
 
 	if err != nil || org == nil {
-		return nil, errors.Wrap(err, errGetOrg)
+		return nil, 0, errors.Wrap(err, errGetOrg)
 	}
-
-	cr.Status.AtProvider.OrgID = &org.ID
-	idAsString := fmt.Sprintf("%d", org.ID)
-	cr.Status.AtProvider.ID = &idAsString
-	cr.Status.AtProvider.Name = cr.Spec.ForProvider.Name
-	cr.Status.AtProvider.AdminUser = cr.Spec.ForProvider.AdminUser
-	cr.Status.AtProvider.CreateUsers = cr.Spec.ForProvider.CreateUsers
 
 	orgUsers, err := c.service.GetOrgUsers(org.ID)
 
 	if err != nil {
-		return nil, errors.Wrap(err, errGetOrgUsers)
+		return nil, org.ID, errors.Wrap(err, errGetOrgUsers)
 	}
 
 	actual := v1alpha1.OrganizationParameters{}
@@ -247,16 +233,24 @@ func (c *external) observeActualParameters(cr *v1alpha1.Organization) (*v1alpha1
 		}
 		err = role.SetUsersInParameters(&actual, users)
 		if err != nil {
-			return &actual, err
+			return &actual, org.ID, err
 		}
 	}
 
+	return &actual, org.ID, nil
+}
+
+func copyToStatus(cr *v1alpha1.Organization, actual *v1alpha1.OrganizationParameters, orgId *int64) {
+	cr.Status.AtProvider.OrgID = orgId
+	idAsString := fmt.Sprintf("%d", *orgId)
+	cr.Status.AtProvider.ID = &idAsString
+	cr.Status.AtProvider.Name = cr.Spec.ForProvider.Name
+	cr.Status.AtProvider.AdminUser = cr.Spec.ForProvider.AdminUser
+	cr.Status.AtProvider.CreateUsers = cr.Spec.ForProvider.CreateUsers
 	cr.Status.AtProvider.Admins = actual.Admins
 	cr.Status.AtProvider.Editors = actual.Editors
 	cr.Status.AtProvider.Viewers = actual.Viewers
 	cr.Status.AtProvider.UsersWithoutAccess = actual.UsersWithoutAccess
-
-	return &actual, nil
 }
 
 func (c *external) usersEqualIgnoreOrder(a, b []*string) bool {
@@ -284,7 +278,7 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 		return managed.ExternalObservation{}, errors.New(errNotOrganization)
 	}
 
-	actual, err := c.observeActualParameters(cr)
+	actual, orgId, err := c.observeActualParameters(cr)
 	if err != nil {
 		return managed.ExternalObservation{}, err
 	}
@@ -293,6 +287,8 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 			ResourceExists: false,
 		}, nil
 	}
+
+	copyToStatus(cr, actual, &orgId)
 
 	upToDate := true
 
@@ -456,17 +452,12 @@ func (c *external) Update(ctx context.Context, mg resource.Managed) (managed.Ext
 		return managed.ExternalUpdate{}, errors.New(errNotOrganization)
 	}
 
-	actual, err := c.observeActualParameters(cr)
+	actual, _, err := c.observeActualParameters(cr)
 	if err != nil {
 		return managed.ExternalUpdate{}, err
 	}
 	if actual == nil {
 		return managed.ExternalUpdate{}, errors.New(errOrgNotFound)
-	}
-
-	nameUpToDate := *actual.Name == *cr.Spec.ForProvider.Name
-	if !nameUpToDate {
-		return managed.ExternalUpdate{}, errors.New(errOrgNameChanged)
 	}
 
 	usersUpToDate := true

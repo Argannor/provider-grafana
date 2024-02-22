@@ -56,8 +56,6 @@ const (
 	errGetCreds      = "cannot get credentials"
 	errCredsFormat   = "credentials are not formatted as base64 encoded 'username:password' pair"
 	errOrgIdNotInt   = "orgId is not an integer"
-	errNameChange    = "cannot change name of DataSource"
-	errOrgChange     = "cannot change Organization"
 
 	errNewClient              = "cannot create new Service"
 	errFailedGetDataSource    = "cannot get DataSource from Grafana API"
@@ -255,7 +253,7 @@ func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 		return managed.ExternalCreation{}, err
 	}
 
-	response, err := c.service.CreateDataSource(orgId, &models.AddDataSourceCommand{
+	_, err = c.service.CreateDataSource(orgId, &models.AddDataSourceCommand{
 		Access:          models.DsAccess(common.DefaultString(spec.AccessMode, "proxy")),
 		BasicAuth:       common.DefaultBool(spec.BasicAuthEnabled, false),
 		BasicAuthUser:   common.DefaultString(spec.BasicAuthUsername, ""),
@@ -275,8 +273,6 @@ func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 		return managed.ExternalCreation{}, errors.Wrap(err, errFailedCreateDataSource)
 	}
 
-	copyToStatus(response.Datasource, cr)
-
 	return managed.ExternalCreation{
 		// Optionally return any details that may be required to connect to the
 		// external resource. These will be stored as the connection secret.
@@ -288,13 +284,6 @@ func (c *external) Update(ctx context.Context, mg resource.Managed) (managed.Ext
 	cr, ok := mg.(*v1alpha1.DataSource)
 	if !ok {
 		return managed.ExternalUpdate{}, errors.New(errNotDataSource)
-	}
-
-	if *cr.Spec.ForProvider.Name != *cr.Status.AtProvider.Name {
-		return managed.ExternalUpdate{}, errors.New(errNameChange)
-	}
-	if *cr.Spec.ForProvider.OrgID != *cr.Status.AtProvider.OrgID {
-		return managed.ExternalUpdate{}, errors.New(errOrgChange)
 	}
 
 	// orgId as int64
