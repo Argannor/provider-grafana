@@ -302,6 +302,24 @@ func (g *GrafanaAPI) GetFolderById(orgId int64, id int64) (*models.Folder, error
 	return orNilOnNotFound[models.Folder](&response, err)
 }
 
+func (g *GrafanaAPI) GetFolderByName(orgId int64, name string, parentFolder *string) (*models.Folder, error) {
+	dashboardType := "dash-folder"
+	params := &search.SearchParams{
+		Type:  &dashboardType,
+		Query: &name,
+	}
+	setFolderIdIfNotNull(parentFolder, params)
+	response, err := g.service.Clone().WithOrgID(orgId).Search.Search(params)
+	if err != nil {
+		return nil, err
+	}
+	if len(response.Payload) == 0 {
+		return nil, nil
+	}
+	uid := response.Payload[0].UID
+	return g.GetFolderByUid(orgId, uid)
+}
+
 func (g *GrafanaAPI) CreateFolder(orgId int64, command *models.CreateFolderCommand) (*models.Folder, error) {
 	response, err := g.service.Clone().WithOrgID(orgId).Folders.CreateFolder(command)
 	if err != nil {
@@ -319,7 +337,7 @@ func (g *GrafanaAPI) UpdateFolder(orgId int64, uid string, command *models.Updat
 }
 
 func (g *GrafanaAPI) DeleteFolder(orgId int64, uid string) (*models.DeleteFolderOKBody, error) {
-	deleteRules := true
+	deleteRules := false
 	params := folders.DeleteFolderParams{
 		FolderUID:        uid,
 		ForceDeleteRules: &deleteRules,

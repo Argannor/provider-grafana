@@ -106,6 +106,7 @@ type FolderParameters struct {
 	// +crossplane:generate:reference:refFieldName=OrganizationRef
 	// +crossplane:generate:reference:selectorFieldName=OrganizationSelector
 	// +crossplane:generate:reference:extractor=github.com/argannor/provider-grafana/apis/oss/v1alpha1.OrgId()
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="Name is immutable"
 	// +kubebuilder:validation:Optional
 	OrgID *string `json:"orgId,omitempty" tf:"org_id,omitempty"`
 
@@ -123,6 +124,7 @@ type FolderParameters struct {
 	// +crossplane:generate:reference:extractor=github.com/argannor/provider-grafana/apis/oss/v1alpha1.UIDExtractor()
 	// +crossplane:generate:reference:refFieldName=FolderRef
 	// +crossplane:generate:reference:selectorFieldName=FolderSelector
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="Name is immutable"
 	// +kubebuilder:validation:Optional
 	ParentFolderUID *string `json:"parentFolderUid,omitempty" tf:"parent_folder_uid,omitempty"`
 
@@ -187,9 +189,9 @@ type FolderList struct {
 	Items           []Folder `json:"items"`
 }
 
-// DataSource type metadata.
+// Folder type metadata.
 var (
-	FolderKind             = reflect.TypeOf(DataSource{}).Name()
+	FolderKind             = reflect.TypeOf(Folder{}).Name()
 	FolderGroupKind        = schema.GroupKind{Group: Group, Kind: FolderKind}.String()
 	FolderKindAPIVersion   = FolderKind + "." + SchemeGroupVersion.String()
 	FolderGroupVersionKind = SchemeGroupVersion.WithKind(FolderKind)

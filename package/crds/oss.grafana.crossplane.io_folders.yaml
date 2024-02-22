@@ -147,6 +147,9 @@ spec:
                       ID. If not set, the Org ID defined in the provider block will
                       be used.
                     type: string
+                    x-kubernetes-validations:
+                    - message: Name is immutable
+                      rule: self == oldSelf
                   organizationRef:
                     description: Reference to a Organization in oss to populate orgId.
                     properties:
@@ -230,6 +233,9 @@ spec:
                       the nestedFolders feature flag to be enabled on your Grafana
                       instance.'
                     type: string
+                    x-kubernetes-validations:
+                    - message: Name is immutable
+                      rule: self == oldSelf
                   title:
                     description: (String) The title of the folder. The title of the
                       folder.

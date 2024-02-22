@@ -1,0 +1,26 @@
+apiVersion: oss.grafana.crossplane.io/v1alpha1
+kind: Folder
+metadata:
+  name: parent
+spec:
+  forProvider:
+    title: Parent
+    organizationRef:
+      name: example
+  providerConfigRef:
+    name: provider-grafana
+---
+# untested, as this is currently a preview feature
+#apiVersion: oss.grafana.crossplane.io/v1alpha1
+#kind: Folder
+#metadata:
+#  name: child
+#spec:
+#  forProvider:
+#    title: Child
+#    folderRef:
+#      name: parent
+#    organizationRef:
+#      name: example
+#  providerConfigRef:
+#    name: provider-grafana

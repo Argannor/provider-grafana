@@ -48,15 +48,13 @@ import (
 )
 
 const (
-	errNotFolder                = "managed resource is not a Folder custom resource"
-	errTrackPCUsage             = "cannot track ProviderConfig usage"
-	errGetPC                    = "cannot get ProviderConfig"
-	errGetCreds                 = "cannot get credentials"
-	errCredsFormat              = "credentials are not formatted as base64 encoded 'username:password' pair"
-	errOrgIdNotInt              = "orgId is not an integer"
-	errIdNotInt                 = "folder ID is not an integer"
-	errOrgChange                = "cannot change Organization"
-	errParentFolderChangeChange = "cannot change parent folder"
+	errNotFolder    = "managed resource is not a Folder custom resource"
+	errTrackPCUsage = "cannot track ProviderConfig usage"
+	errGetPC        = "cannot get ProviderConfig"
+	errGetCreds     = "cannot get credentials"
+	errCredsFormat  = "credentials are not formatted as base64 encoded 'username:password' pair"
+	errOrgIdNotInt  = "orgId is not an integer"
+	errIdNotInt     = "folder ID is not an integer"
 
 	errNewClient          = "cannot create new Service"
 	errFailedGetFolder    = "cannot get Folder from Grafana API"
@@ -234,13 +232,11 @@ func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 		UID:       common.DefaultString(spec.UID, ""),
 	}
 
-	response, err := c.service.CreateFolder(orgId, command)
+	_, err = c.service.CreateFolder(orgId, command)
 
 	if err != nil {
 		return managed.ExternalCreation{}, errors.Wrap(err, errFailedCreateFolder)
 	}
-
-	copyToStatus(response, cr, *spec.OrgID)
 
 	return managed.ExternalCreation{
 		// Optionally return any details that may be required to connect to the
@@ -255,14 +251,6 @@ func (c *external) Update(ctx context.Context, mg resource.Managed) (managed.Ext
 		return managed.ExternalUpdate{}, errors.New(errNotFolder)
 	}
 
-	if *cr.Spec.ForProvider.OrgID != *cr.Status.AtProvider.OrgID {
-		return managed.ExternalUpdate{}, errors.New(errOrgChange)
-	}
-
-	if parentFolderChanged(cr) {
-		return managed.ExternalUpdate{}, errors.New(errParentFolderChangeChange)
-	}
-
 	// orgId as int64
 	spec := cr.Spec.ForProvider
 	orgId, err := strconv.ParseInt(*spec.OrgID, 10, 64)
@@ -271,7 +259,8 @@ func (c *external) Update(ctx context.Context, mg resource.Managed) (managed.Ext
 	}
 
 	command := &models.UpdateFolderCommand{
-		Title: common.DefaultString(spec.Title, ""),
+		Title:   common.DefaultString(spec.Title, ""),
+		Version: *cr.Status.AtProvider.Version,
 		// Overwrite?
 	}
 
@@ -303,7 +292,7 @@ func (c *external) Delete(ctx context.Context, mg resource.Managed) error {
 		return errors.Wrap(err, errOrgIdNotInt)
 	}
 
-	_, err = c.service.DeleteFolder(orgId, *cr.Status.AtProvider.ID)
+	_, err = c.service.DeleteFolder(orgId, *cr.Status.AtProvider.UID)
 
 	return errors.Wrap(err, errFailedDeleteFolder)
 }
@@ -340,13 +329,6 @@ func (c *external) GetFolder(orgId int64, cr *v1alpha1.Folder) (*models.Folder, 
 		}
 		return c.service.GetFolderById(orgId, idAsInt)
 	default:
-		return nil, nil
+		return c.service.GetFolderByName(orgId, *cr.Spec.ForProvider.Title, cr.Spec.ForProvider.ParentFolderUID)
 	}
-}
-
-func parentFolderChanged(cr *v1alpha1.Folder) bool {
-	if cr.Status.AtProvider.ParentFolderUID == nil || cr.Spec.ForProvider.ParentFolderUID == nil {
-		return cr.Status.AtProvider.ParentFolderUID == cr.Spec.ForProvider.ParentFolderUID
-	}
-	return *cr.Spec.ForProvider.ParentFolderUID != *cr.Status.AtProvider.ParentFolderUID
 }
