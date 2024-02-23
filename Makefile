@@ -65,7 +65,7 @@ submodules:
 	@git submodule sync
 	@git submodule update --init --recursive
 
-# NOTE(hasheddan): the build submodule currently overrides XDG_CACHE_HOME in
+# NOTE(hasheddan): the build submodule currently overrides XDG_CACHE_HOME inF
 # order to force the Helm 3 to use the .work/helm directory. This causes Go on
 # Linux machines to use that directory as the build cache as well. We should
 # adjust this behavior in the build submodule because it is also causing Linux
