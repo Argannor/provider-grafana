@@ -9,7 +9,7 @@ spec:
       name: example
   providerConfigRef:
     name: provider-grafana
----
+#---
 # untested, as this is currently a preview feature
 #apiVersion: oss.grafana.crossplane.io/v1alpha1
 #kind: Folder
