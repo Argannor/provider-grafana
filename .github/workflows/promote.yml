@@ -17,8 +17,6 @@ env:
   # credentials have been provided before trying to run steps that need them.
   DOCKER_USR: ${{ secrets.DOCKER_USR }}
   AWS_USR: ${{ secrets.AWS_USR }}
-  REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
 
 jobs:
   promote-artifacts:
@@ -33,19 +31,18 @@ jobs:
       - name: Fetch History
         run: git fetch --prune --unshallow
 
-      - name: Log in to the Container registry
-        uses: docker/login-action@65b78e6e13532edd9afa3aa52ac7964289d1a9c1
+      - name: Login to Docker
+        uses: docker/login-action@v1
+        if: env.DOCKER_USR != ''
         with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          username: ${{ secrets.DOCKER_USR }}
+          password: ${{ secrets.DOCKER_PSW }}
 
       - name: Promote Artifacts in S3 and Docker Hub
-        # if: env.AWS_USR != '' && env.DOCKER_USR != ''
+        if: env.AWS_USR != '' && env.DOCKER_USR != ''
         run: make -j2 promote BRANCH_NAME=${GITHUB_REF##*/}
         env:
           VERSION: ${{ github.event.inputs.version }}
           CHANNEL: ${{ github.event.inputs.channel }}
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_USR }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_PSW }}
-          BUILD_REGISTRY: "${{ env.REGISTRY }}"
