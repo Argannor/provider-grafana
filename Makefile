@@ -2,6 +2,7 @@
 # Setup Project
 PROJECT_NAME := provider-grafana
 PROJECT_REPO := github.com/argannor/$(PROJECT_NAME)
+USE_HELM3 := true
 
 PLATFORMS ?= linux_amd64 linux_arm64
 -include build/makelib/common.mk
@@ -87,12 +88,15 @@ run: go.build
 	@# To see other arguments that can be provided, run the command with --help instead
 	$(GO_OUT_DIR)/provider --debug
 
-dev: $(KIND) $(KUBECTL)
+cluster: $(KIND) $(KUBECTL)
 	@$(INFO) Creating kind cluster
 	@$(KIND) create cluster --name=$(PROJECT_NAME)-dev
 	@$(KUBECTL) cluster-info --context kind-$(PROJECT_NAME)-dev
 	@$(INFO) Installing Crossplane CRDs
 	@$(KUBECTL) apply -k https://github.com/crossplane/crossplane//cluster?ref=master --server-side
+
+dev: $(KIND) $(KUBECTL)
+	@$(MAKE) cluster
 	@$(INFO) Installing Provider Grafana CRDs
 	@$(KUBECTL) apply -R -f package/crds
 	@$(INFO) Starting Provider Grafana controllers
@@ -143,7 +147,7 @@ provider.prepare:
 #   provider: Camel case name of your provider, e.g. GitHub, PlanetScale
 #   group: API group for the type you want to add.
 #   kind: Kind of the type you want to add
-#	apiversion: API version of the type you want to add. Optional and defaults to "v1alpha1"
+#	apiversion: API version of the type you want to add. Optional and defaults to "v1beta1"
 provider.addtype: $(GOMPLATE)
 	@[ "${provider}" ] || ( echo "argument \"provider\" is not set"; exit 1 )
 	@[ "${group}" ] || ( echo "argument \"group\" is not set"; exit 1 )
@@ -166,3 +170,5 @@ crossplane.help:
 help-special: crossplane.help
 
 .PHONY: crossplane.help help-special
+
+-include hack/build/official-grafana.mk

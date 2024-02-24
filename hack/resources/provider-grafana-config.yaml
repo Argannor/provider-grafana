@@ -1,0 +1,23 @@
+apiVersion: grafana.crossplane.io/v1beta1
+kind: ProviderConfig
+metadata:
+  name: default
+spec:
+  credentials:
+    source: Secret
+    secretRef:
+      namespace: crossplane-system
+      name: grafana-creds
+      key: config
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: grafana-creds
+  namespace: crossplane-system
+stringData:
+    config: |
+        {
+        "url": "http://localhost:3000",
+        "auth": "YWRtaW46YWRtaW4=",
+        }

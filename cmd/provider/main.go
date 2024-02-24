@@ -22,6 +22,8 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/argannor/provider-grafana/apis/v1alpha1"
+
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 
 	"gopkg.in/alecthomas/kingpin.v2"
@@ -39,7 +41,6 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
 	"github.com/argannor/provider-grafana/apis"
-	"github.com/argannor/provider-grafana/apis/v1alpha1"
 	grafana "github.com/argannor/provider-grafana/internal/controller"
 	"github.com/argannor/provider-grafana/internal/features"
 )
