@@ -25,6 +25,8 @@ import (
 	"net/url"
 	"strings"
 
+	providerV1alpha1 "github.com/argannor/provider-grafana/apis/v1alpha1"
+
 	"github.com/argannor/provider-grafana/internal/controller/common"
 
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
@@ -44,7 +46,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
 	"github.com/argannor/provider-grafana/apis/oss/v1alpha1"
-	apisv1alpha1 "github.com/argannor/provider-grafana/apis/v1alpha1"
+	apisv1beta1 "github.com/argannor/provider-grafana/apis/v1beta1"
 	"github.com/argannor/provider-grafana/internal/features"
 	grafana "github.com/grafana/grafana-openapi-client-go/client"
 )
@@ -99,7 +101,7 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 
 	cps := []managed.ConnectionPublisher{managed.NewAPISecretPublisher(mgr.GetClient(), mgr.GetScheme())}
 	if o.Features.Enabled(features.EnableAlphaExternalSecretStores) {
-		cps = append(cps, connection.NewDetailsManager(mgr.GetClient(), apisv1alpha1.StoreConfigGroupVersionKind))
+		cps = append(cps, connection.NewDetailsManager(mgr.GetClient(), providerV1alpha1.StoreConfigGroupVersionKind))
 	}
 
 	logger := o.Logger.WithValues("controller", name)
@@ -107,7 +109,7 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 		resource.ManagedKind(v1alpha1.OrganizationGroupVersionKind),
 		managed.WithExternalConnecter(&connector{
 			kube:         mgr.GetClient(),
-			usage:        resource.NewProviderConfigUsageTracker(mgr.GetClient(), &apisv1alpha1.ProviderConfigUsage{}),
+			usage:        resource.NewProviderConfigUsageTracker(mgr.GetClient(), &apisv1beta1.ProviderConfigUsage{}),
 			newServiceFn: newService,
 			logger:       logger}),
 		managed.WithLogger(logger),
@@ -147,7 +149,7 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 		return nil, errors.Wrap(err, errTrackPCUsage)
 	}
 
-	pc := &apisv1alpha1.ProviderConfig{}
+	pc := &apisv1beta1.ProviderConfig{}
 	if err := c.kube.Get(ctx, types.NamespacedName{Name: cr.GetProviderConfigReference().Name}, pc); err != nil {
 		return nil, errors.Wrap(err, errGetPC)
 	}

@@ -21,7 +21,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 
 	ossv1alpha1 "github.com/argannor/provider-grafana/apis/oss/v1alpha1"
-	grafanav1alpha1 "github.com/argannor/provider-grafana/apis/v1alpha1"
+	grafanav1alpha1 "github.com/argannor/provider-grafana/apis/v1beta1"
 )
 
 func init() {
