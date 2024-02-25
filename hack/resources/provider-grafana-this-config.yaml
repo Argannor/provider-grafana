@@ -1,0 +1,24 @@
+# note this is the grafana provider from this repository
+apiVersion: v1
+kind: Secret
+metadata:
+  namespace: crossplane-system
+  name: example-provider-secret
+type: Opaque
+stringData:
+  credentials: "YWRtaW46YWRtaW4="
+---
+apiVersion: grafana.crossplane.io/v1beta1
+kind: ProviderConfig
+metadata:
+  name: default
+spec:
+  host: grafana
+  port: 3000
+  schemes: [ "http" ]
+  credentials:
+    source: Secret
+    secretRef:
+      namespace: crossplane-system
+      name: example-provider-secret
+      key: credentials

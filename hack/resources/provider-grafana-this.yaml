@@ -1,0 +1,7 @@
+# note this is the grafana provider from this repository
+apiVersion: pkg.crossplane.io/v1
+kind: Provider
+metadata:
+  name: provider-grafana
+spec:
+  package: xpkg.upbound.io/argannor-oss/provider-grafana:v0.0.1-9.g4866768

@@ -1,0 +1,64 @@
+apiVersion: oss.grafana.crossplane.io/v1alpha1
+kind: Dashboard
+metadata:
+  annotations:
+    crossplane.io/external-create-pending: "2024-02-25T01:58:07Z"
+    crossplane.io/external-create-succeeded: "2024-02-25T01:58:07Z"
+    crossplane.io/external-name: 8:d97e298b-f707-44ee-9821-78ba20bfdfe1
+    kubectl.kubernetes.io/last-applied-configuration: |
+      {"apiVersion":"oss.grafana.crossplane.io/v1alpha1","kind":"Dashboard","metadata":{"annotations":{},"name":"dashboard"},"spec":{"deletionPolicy":"Delete","forProvider":{"configJson":"{      \n  \"editable\": true,\n  \"fiscalYearStartMonth\": 0,\n  \"graphTooltip\": 0,\n  \"id\": null,\n  \"links\": [],\n  \"liveNow\": false,\n  \"panels\": [\n\t{\n\t  \"collapsed\": false,\n\t  \"gridPos\": {\n\t\t\"h\": 1,\n\t\t\"w\": 24,\n\t\t\"x\": 0,\n\t\t\"y\": 0\n\t  },\n\t  \"id\": 25,\n\t  \"panels\": [],\n\t  \"title\": \"Overview\",\n\t  \"type\": \"row\"\n\t}\n  ],\n  \"refresh\": \"5m\",\n  \"revision\": 1,\n  \"schemaVersion\": 38,\n  \"tags\": [\n\t\"read-only\",\n\t\"via-crossplane\"\n  ],\n  \"time\": {\n\t\"from\": \"now-4h\",\n\t\"to\": \"now\"\n  },\n  \"timepicker\": {},\n  \"timezone\": \"\",\n  \"title\": \"Resource overview\",\n  \"description\": \"Namespace resource overview. Managed by crossplane\",\n  \"uid\": \"d97e298b-f707-44ee-9821-78ba20bfdfe1\",\n  \"version\": 1,\n  \"weekStart\": \"\"\n}\n","folderRef":{"name":"folder"},"message":"Created by crossplane","organizationRef":{"name":"example-organization"}},"providerConfigRef":{"name":"default"}}}
+    upjet.crossplane.io/provider-meta: '{"schema_version":"1"}'
+  creationTimestamp: "2024-02-25T01:58:01Z"
+  finalizers:
+  - finalizer.managedresource.crossplane.io
+  generation: 3
+  name: dashboard
+  resourceVersion: "997"
+  uid: e26b3659-5778-460c-981b-b6b409858aaf
+spec:
+  deletionPolicy: Delete
+  forProvider:
+    configJson: "{      \n  \"editable\": true,\n  \"fiscalYearStartMonth\": 0,\n
+      \ \"graphTooltip\": 0,\n  \"id\": null,\n  \"links\": [],\n  \"liveNow\": false,\n
+      \ \"panels\": [\n\t{\n\t  \"collapsed\": false,\n\t  \"gridPos\": {\n\t\t\"h\":
+      1,\n\t\t\"w\": 24,\n\t\t\"x\": 0,\n\t\t\"y\": 0\n\t  },\n\t  \"id\": 25,\n\t
+      \ \"panels\": [],\n\t  \"title\": \"Overview\",\n\t  \"type\": \"row\"\n\t}\n
+      \ ],\n  \"refresh\": \"5m\",\n  \"revision\": 1,\n  \"schemaVersion\": 38,\n
+      \ \"tags\": [\n\t\"read-only\",\n\t\"via-crossplane\"\n  ],\n  \"time\": {\n\t\"from\":
+      \"now-4h\",\n\t\"to\": \"now\"\n  },\n  \"timepicker\": {},\n  \"timezone\":
+      \"\",\n  \"title\": \"Resource overview\",\n  \"description\": \"Namespace resource
+      overview. Managed by crossplane\",\n  \"uid\": \"d97e298b-f707-44ee-9821-78ba20bfdfe1\",\n
+      \ \"version\": 1,\n  \"weekStart\": \"\"\n}\n"
+    folder: fc91eb77-27b6-442f-9de4-0f4760cec2ab
+    folderRef:
+      name: folder
+    message: Created by crossplane
+    orgId: "8"
+    organizationRef:
+      name: example-organization
+  initProvider: {}
+  managementPolicies:
+  - '*'
+  providerConfigRef:
+    name: default
+status:
+  atProvider:
+    configJson: '{"description":"Namespace resource overview. Managed by crossplane","editable":true,"fiscalYearStartMonth":0,"graphTooltip":0,"links":[],"liveNow":false,"panels":[{"collapsed":false,"gridPos":{"h":1,"w":24,"x":0,"y":0},"panels":[],"title":"Overview","type":"row"}],"refresh":"5m","revision":1,"schemaVersion":38,"tags":["read-only","via-crossplane"],"time":{"from":"now-4h","to":"now"},"timepicker":{},"timezone":"","title":"Resource
+      overview","uid":"d97e298b-f707-44ee-9821-78ba20bfdfe1","weekStart":""}'
+    dashboardId: 8
+    folder: fc91eb77-27b6-442f-9de4-0f4760cec2ab
+    id: 8:d97e298b-f707-44ee-9821-78ba20bfdfe1
+    message: Created by crossplane
+    orgId: "8"
+    uid: d97e298b-f707-44ee-9821-78ba20bfdfe1
+    url: http://grafana:3000/d/d97e298b-f707-44ee-9821-78ba20bfdfe1/resource-overview
+    version: 1
+  conditions:
+  - lastTransitionTime: "2024-02-25T01:58:07Z"
+    reason: ReconcileSuccess
+    status: "True"
+    type: Synced
+  - lastTransitionTime: "2024-02-25T01:58:15Z"
+    reason: Available
+    status: "True"
+    type: Ready

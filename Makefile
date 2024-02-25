@@ -109,6 +109,8 @@ dev-clean: $(KIND) $(KUBECTL)
 dev-redeploy: $(KIND) $(KUBECTL)
 	@$(INFO) Building
 	@$(MAKE) generate
+	@$(INFO) Installing Provider Grafana CRDs
+	@$(KUBECTL) apply -R -f package/crds
 	@$(INFO) Starting Provider Grafana controllers
 	@$(GO) run cmd/provider/main.go --debug
 

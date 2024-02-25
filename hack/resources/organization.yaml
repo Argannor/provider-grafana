@@ -1,0 +1,17 @@
+apiVersion: oss.grafana.crossplane.io/v1alpha1
+kind: Organization
+metadata:
+  name: example-organization
+  namespace: crossplane-system
+spec:
+  providerConfigRef:
+    name: default
+  forProvider:
+    name: example-organization
+    admins:
+      - admin@localhost
+      - alice@acme.org
+    editors:
+      - bob@acme.org
+    viewers:
+      - charlie@acme.org

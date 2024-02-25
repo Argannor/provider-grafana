@@ -1,0 +1,58 @@
+apiVersion: oss.grafana.crossplane.io/v1alpha1
+kind: Organization
+metadata:
+  annotations:
+    crossplane.io/external-create-pending: "2024-02-25T01:58:01Z"
+    crossplane.io/external-create-succeeded: "2024-02-25T01:58:02Z"
+    crossplane.io/external-name: "8"
+    kubectl.kubernetes.io/last-applied-configuration: |
+      {"apiVersion":"oss.grafana.crossplane.io/v1alpha1","kind":"Organization","metadata":{"annotations":{},"name":"example-organization"},"spec":{"forProvider":{"admins":["admin@localhost","alice@acme.org"],"editors":["bob@acme.org"],"name":"example-organization","viewers":["charlie@acme.org"]},"providerConfigRef":{"name":"default"}}}
+    upjet.crossplane.io/provider-meta: "null"
+  creationTimestamp: "2024-02-25T01:58:01Z"
+  finalizers:
+  - finalizer.managedresource.crossplane.io
+  generation: 3
+  name: example-organization
+  resourceVersion: "957"
+  uid: 8054b531-153d-47b8-98aa-5ab546a73669
+spec:
+  deletionPolicy: Delete
+  forProvider:
+    adminUser: admin
+    admins:
+    - admin@localhost
+    - alice@acme.org
+    createUsers: true
+    editors:
+    - bob@acme.org
+    name: example-organization
+    viewers:
+    - charlie@acme.org
+  initProvider: {}
+  managementPolicies:
+  - '*'
+  providerConfigRef:
+    name: default
+status:
+  atProvider:
+    adminUser: admin
+    admins:
+    - admin@localhost
+    - alice@acme.org
+    createUsers: true
+    editors:
+    - bob@acme.org
+    id: "8"
+    name: example-organization
+    orgId: 8
+    viewers:
+    - charlie@acme.org
+  conditions:
+  - lastTransitionTime: "2024-02-25T01:58:02Z"
+    reason: Available
+    status: "True"
+    type: Ready
+  - lastTransitionTime: "2024-02-25T01:58:02Z"
+    reason: ReconcileSuccess
+    status: "True"
+    type: Synced

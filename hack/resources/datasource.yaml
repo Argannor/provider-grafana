@@ -1,0 +1,16 @@
+apiVersion: oss.grafana.crossplane.io/v1alpha1
+kind: DataSource
+metadata:
+  name: datasource
+  namespace: crossplane-system
+spec:
+  forProvider:
+    name: datasource
+    type: prometheus
+    basicAuthEnabled: true
+    basicAuthUsername: username
+    url: http://prometheus:9092
+    organizationRef:
+      name: example-organization
+  providerConfigRef:
+    name: default
