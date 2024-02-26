@@ -263,7 +263,7 @@ func (c *external) usersEqualIgnoreOrder(a, b []*string) bool {
 		found := false
 		normalizedUser := strings.ToLower(*user)
 		for _, otherUser := range b {
-			if normalizedUser == strings.ToLower(*otherUser) {
+			if strings.EqualFold(normalizedUser, *otherUser) {
 				found = true
 				break
 			}
