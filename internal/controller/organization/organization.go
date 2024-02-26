@@ -261,8 +261,9 @@ func (c *external) usersEqualIgnoreOrder(a, b []*string) bool {
 	}
 	for _, user := range a {
 		found := false
+		normalizedUser := strings.ToLower(*user)
 		for _, otherUser := range b {
-			if *user == *otherUser {
+			if normalizedUser == strings.ToLower(*otherUser) {
 				found = true
 				break
 			}
@@ -357,13 +358,14 @@ func (c *external) updateUsers(cr *v1alpha1.Organization, actual v1alpha1.Organi
 		u := change.User
 		switch change.Type {
 		case Add:
-			_, err = c.service.AddOrgUser(*orgID, &models.AddOrgUserCommand{LoginOrEmail: u.Email, Role: u.Role})
+			_, err = c.service.AddOrgUser(*orgID, &models.AddOrgUserCommand{LoginOrEmail: strings.ToLower(u.Email), Role: u.Role})
 		case Update:
 			_, err = c.service.UpdateOrgUser(*orgID, u.ID, &models.UpdateOrgUserCommand{Role: u.Role})
 		case Remove:
 			_, err = c.service.RemoveOrgUser(u.ID, *orgID)
 		}
 		if err != nil && !strings.Contains(err.Error(), "409") {
+			// TODO: gather errors and return them all at once
 			return errors.Wrap(err, errUpdateUser)
 		}
 	}
@@ -412,7 +414,7 @@ func (c *external) addUserIdsToChanges(d *v1alpha1.OrganizationParameters, chang
 			return nil, fmt.Errorf("error adding user %s. User does not exist in Grafana", change.User.Email)
 		}
 		if !ok && create {
-			id, err = c.service.CreateUser(change.User.Email)
+			id, err = c.service.CreateUser(strings.ToLower(change.User.Email))
 			if err != nil {
 				return nil, err
 			}
