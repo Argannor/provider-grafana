@@ -21,10 +21,11 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	v1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"io"
 	"net/url"
 	"strings"
+
+	v1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 
 	providerV1alpha1 "github.com/argannor/provider-grafana/apis/v1alpha1"
 
