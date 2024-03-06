@@ -21,6 +21,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	v1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"io"
 	"net/url"
 	"strconv"
@@ -193,6 +194,8 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 
 	upToDate := isUpToDate(cr, atGrafana)
 
+	cr.SetConditions(v1.Available())
+
 	copyToStatus(atGrafana, cr, *cr.Spec.ForProvider.OrgID)
 	if err != nil {
 		return managed.ExternalObservation{}, err
@@ -220,6 +223,8 @@ func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 	if !ok {
 		return managed.ExternalCreation{}, errors.New(errNotFolder)
 	}
+
+	cr.SetConditions(v1.Creating())
 
 	// orgId as int64
 	spec := cr.Spec.ForProvider
@@ -286,6 +291,8 @@ func (c *external) Delete(ctx context.Context, mg resource.Managed) error {
 	if !ok {
 		return errors.New(errNotFolder)
 	}
+
+	cr.SetConditions(v1.Deleting())
 
 	// orgId as int64
 	spec := cr.Spec.ForProvider

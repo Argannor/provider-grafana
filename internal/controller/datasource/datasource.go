@@ -218,6 +218,7 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 		return managed.ExternalObservation{}, err
 	}
 
+	cr.SetConditions(v1.Available())
 	copyToStatus(atGrafana, cr)
 
 	return managed.ExternalObservation{
@@ -242,6 +243,8 @@ func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 	if !ok {
 		return managed.ExternalCreation{}, errors.New(errNotDataSource)
 	}
+
+	cr.SetConditions(v1.Creating())
 
 	// orgId as int64
 	spec := cr.Spec.ForProvider
@@ -334,6 +337,8 @@ func (c *external) Delete(ctx context.Context, mg resource.Managed) error {
 	if !ok {
 		return errors.New(errNotDataSource)
 	}
+
+	cr.SetConditions(v1.Deleting())
 
 	// orgId as int64
 	spec := cr.Spec.ForProvider

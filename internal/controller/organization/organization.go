@@ -21,6 +21,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	v1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"io"
 	"net/url"
 	"strings"
@@ -302,6 +303,8 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 	upToDate = upToDate && c.usersEqualIgnoreOrder(cr.Spec.ForProvider.Viewers, actual.Viewers)
 	upToDate = upToDate && c.usersEqualIgnoreOrder(cr.Spec.ForProvider.UsersWithoutAccess, actual.UsersWithoutAccess)
 
+	cr.SetConditions(v1.Available())
+
 	delta := cmp.Diff(cr.Spec.ForProvider, *actual)
 
 	return managed.ExternalObservation{
@@ -328,6 +331,8 @@ func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 	if !ok {
 		return managed.ExternalCreation{}, errors.New(errNotOrganization)
 	}
+
+	cr.SetConditions(v1.Creating())
 
 	org, err := c.service.CreateOrg(*cr.Spec.ForProvider.Name)
 
@@ -486,6 +491,8 @@ func (c *external) Delete(ctx context.Context, mg resource.Managed) error {
 	if !ok {
 		return errors.New(errNotOrganization)
 	}
+
+	cr.SetConditions(v1.Deleting())
 
 	orgID := cr.Status.AtProvider.OrgID
 	if orgID == nil {
