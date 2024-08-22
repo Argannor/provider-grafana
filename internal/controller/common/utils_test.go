@@ -2,8 +2,9 @@ package common
 
 import (
 	_ "embed"
-	"github.com/stretchr/testify/assert"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func Test_CompareMap(t *testing.T) {

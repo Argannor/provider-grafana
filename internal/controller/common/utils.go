@@ -86,11 +86,12 @@ func CompareMap(desired map[string]interface{}, actual map[string]interface{}) (
 			if desiredValueType != actualValueType {
 				return false, nil
 			}
-			if desiredValueType == reflect.TypeOf(map[string]interface{}{}) {
+			switch desiredValueType {
+			case reflect.TypeOf(map[string]interface{}{}):
 				return CompareMap(value.(map[string]interface{}), actual[key].(map[string]interface{}))
-			} else if desiredValueType == reflect.TypeOf([]interface{}{}) {
+			case reflect.TypeOf([]interface{}{}):
 				return CompareSlice(value.([]interface{}), actual[key].([]interface{}))
-			} else {
+			default:
 				return false, fmt.Errorf("Unsupported map type %s of value %v", desiredValueType, value)
 			}
 		}
@@ -112,11 +113,12 @@ func CompareSlice(desired []interface{}, actual []interface{}) (bool, error) {
 			continue
 		}
 		typeA := reflect.TypeOf(value)
-		if typeA == reflect.TypeOf(map[string]interface{}{}) {
+		switch typeA {
+		case reflect.TypeOf(map[string]interface{}{}):
 			return CompareMap(value.(map[string]interface{}), actual[i].(map[string]interface{}))
-		} else if typeA == reflect.TypeOf([]interface{}{}) {
+		case reflect.TypeOf([]interface{}{}):
 			return CompareSlice(value.([]interface{}), actual[i].([]interface{}))
-		} else {
+		default:
 			return false, fmt.Errorf("Unsupported type %s of value %v", typeA, value)
 		}
 	}

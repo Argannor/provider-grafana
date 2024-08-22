@@ -616,6 +616,11 @@ spec:
                   id:
                     description: (String) The ID of this resource.
                     type: string
+                  managedVersion:
+                    description: (Number) The version that was returned by Grafana
+                      on the last write operation carried out by this provider.
+                    format: int64
+                    type: integer
                   message:
                     description: (String) Set a commit message for the version history.
                       Set a commit message for the version history.

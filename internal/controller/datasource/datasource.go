@@ -413,7 +413,7 @@ func isUpToDate(cr *v1alpha1.DataSource, atGrafana *models.DataSource, orgId int
 	upToDate = upToDate && orgId == atGrafana.OrgID
 	jsonDataUpToDate, err := common.CompareMap(jsonData, atGrafana.JSONData.(map[string]interface{}))
 	if err != nil {
-		return false, fmt.Errorf("failed to compare jsonData field: %v", err)
+		return false, fmt.Errorf("failed to compare jsonData field: %w", err)
 	}
 	upToDate = upToDate && jsonDataUpToDate
 	// secure fields are not returned by the API, so we can't compare them
