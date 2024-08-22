@@ -3,7 +3,7 @@
 PROJECT_NAME := provider-grafana
 PROJECT_REPO := github.com/argannor/$(PROJECT_NAME)
 USE_HELM3 := true
-UP_VERSION := 0.32.1
+UP_VERSION := v0.32.1
 PLATFORMS ?= linux_amd64 linux_arm64
 -include build/makelib/common.mk
 
