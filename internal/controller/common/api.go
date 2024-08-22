@@ -2,6 +2,7 @@ package common
 
 import (
 	"crypto/rand"
+	"net/http"
 	"strconv"
 
 	"github.com/grafana/grafana-openapi-client-go/client/folders"
@@ -13,6 +14,13 @@ import (
 	"github.com/grafana/grafana-openapi-client-go/models"
 	"github.com/pkg/errors"
 )
+
+// we ignore forbidden messages on observations, as we cannot discern between
+// - organization (containing the resource) is missing
+// - user does not have access to the organization
+// as both result in a 403 response.
+// 404 is returned iff the user has access to the organization and the resource type, but the resource is missing
+var ignoreStatusCodesOnObserve = []int{http.StatusForbidden, http.StatusNotFound}
 
 type ApiError interface {
 	error
@@ -208,12 +216,12 @@ func (g *GrafanaAPI) GetOrgUsers(orgId int64) ([]*models.OrgUserDTO, error) {
 
 func (g *GrafanaAPI) GetDataSourceById(orgId int64, id string) (*models.DataSource, error) {
 	response, err := g.service.Clone().WithOrgID(orgId).Datasources.GetDataSourceByID(id)
-	return orNilOnNotFound[models.DataSource](&response, err)
+	return orNilOnStatus[models.DataSource](&response, err, ignoreStatusCodesOnObserve...)
 }
 
 func (g *GrafanaAPI) GetDataSourceByName(orgId int64, name string) (*models.DataSource, error) {
 	response, err := g.service.Clone().WithOrgID(orgId).Datasources.GetDataSourceByName(name)
-	return orNilOnNotFound[models.DataSource](&response, err)
+	return orNilOnStatus[models.DataSource](&response, err, ignoreStatusCodesOnObserve...)
 }
 
 func (g *GrafanaAPI) CreateDataSource(orgId int64, command *models.AddDataSourceCommand) (*models.AddDataSourceOKBody, error) {
@@ -251,7 +259,7 @@ func (g *GrafanaAPI) CreateOrUpdateDashboard(orgId int64, command *models.SaveDa
 
 func (g *GrafanaAPI) GetDashboardByUid(orgId int64, uid string) (*models.DashboardFullWithMeta, error) {
 	response, err := g.service.Clone().WithOrgID(orgId).Dashboards.GetDashboardByUID(uid)
-	return orNilOnNotFound[models.DashboardFullWithMeta](&response, err)
+	return orNilOnStatus[models.DashboardFullWithMeta](&response, err, ignoreStatusCodesOnObserve...)
 }
 
 func (g *GrafanaAPI) GetDashboardByName(orgId int64, name string, folder *string) (*models.DashboardFullWithMeta, error) {
@@ -294,12 +302,12 @@ func (g *GrafanaAPI) DeleteDashboard(orgId int64, uid string) (*models.DeleteDas
 
 func (g *GrafanaAPI) GetFolderByUid(orgId int64, uid string) (*models.Folder, error) {
 	response, err := g.service.Clone().WithOrgID(orgId).Folders.GetFolderByUID(uid)
-	return orNilOnNotFound[models.Folder](&response, err)
+	return orNilOnStatus[models.Folder](&response, err, ignoreStatusCodesOnObserve...)
 }
 
 func (g *GrafanaAPI) GetFolderById(orgId int64, id int64) (*models.Folder, error) {
 	response, err := g.service.Clone().WithOrgID(orgId).Folders.GetFolderByID(id)
-	return orNilOnNotFound[models.Folder](&response, err)
+	return orNilOnStatus[models.Folder](&response, err, ignoreStatusCodesOnObserve...)
 }
 
 func (g *GrafanaAPI) GetFolderByName(orgId int64, name string, parentFolder *string) (*models.Folder, error) {
@@ -350,27 +358,40 @@ func (g *GrafanaAPI) DeleteFolder(orgId int64, uid string) (*models.DeleteFolder
 }
 
 func orNilOnNotFound[R interface{}, T ApiResponse[R]](response *T, err error) (*R, error) {
-	if err != nil && isCode(err, 404) {
+	return orNilOnStatus[R, T](response, err, 404)
+}
+
+func orNilOnStatus[R interface{}, T ApiResponse[R]](response *T, err error, status ...int) (*R, error) {
+	if err != nil && isCode(err, status...) {
 		return nil, nil
 	}
 	if err != nil {
 		return nil, err
 	}
-	if (*response).IsCode(404) || response == nil {
+	if response == nil {
 		return nil, nil
+	}
+	for _, code := range status {
+		if (*response).IsCode(code) {
+			return nil, nil
+		}
 	}
 	return (*response).GetPayload(), err
 }
 
 // nolint: unparam
-func isCode(err error, code int) bool {
+func isCode(err error, codes ...int) bool {
 	if err == nil {
 		return false
 	}
 	var oasError ApiError
 	isOasError := errors.As(err, &oasError)
 	if isOasError {
-		return oasError.IsCode(code)
+		for _, code := range codes {
+			if oasError.IsCode(code) {
+				return true
+			}
+		}
 	}
 	return false
 }
