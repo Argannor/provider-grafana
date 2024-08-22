@@ -64,29 +64,64 @@ func CompareOptional[K comparable](desired *K, actual K, defaultValue K) bool {
 	return actual == expected
 }
 
-func CompareMap(desired map[string]interface{}, actual map[string]interface{}) bool {
+func CompareMap(desired map[string]interface{}, actual map[string]interface{}) (bool, error) {
 	if len(desired) != len(actual) {
-		return false
+		return false, nil
 	}
 	for key, value := range desired {
 		if _, ok := actual[key]; !ok {
-			return false
+			return false, nil
 		}
 		equal, ok := compareComparable(value, actual[key])
 		if ok {
 			if !equal {
-				return false
+				return false, nil
 			}
 			continue
 		}
 		typeA := reflect.TypeOf(desired)
 		if typeA == reflect.TypeOf(map[string]interface{}{}) {
-			if !CompareMap(value.(map[string]interface{}), actual[key].(map[string]interface{})) {
-				return false
+			desiredValueType := reflect.TypeOf(value)
+			actualValueType := reflect.TypeOf(actual[key])
+			if desiredValueType != actualValueType {
+				return false, nil
+			}
+			if desiredValueType == reflect.TypeOf(map[string]interface{}{}) {
+				return CompareMap(value.(map[string]interface{}), actual[key].(map[string]interface{}))
+			} else if desiredValueType == reflect.TypeOf([]interface{}{}) {
+				return CompareSlice(value.([]interface{}), actual[key].([]interface{}))
+			} else {
+				return false, fmt.Errorf("Unsupported map type %s of value %v", desiredValueType, value)
 			}
 		}
+		return false, fmt.Errorf("Unsupported type %s of value %v", typeA, value)
 	}
-	return true
+	return true, nil
+}
+
+func CompareSlice(desired []interface{}, actual []interface{}) (bool, error) {
+	if len(desired) != len(actual) {
+		return false, nil
+	}
+	for i, value := range desired {
+		equal, ok := compareComparable(value, actual[i])
+		if ok {
+			if !equal {
+				return false, nil
+			}
+			continue
+		}
+		typeA := reflect.TypeOf(value)
+		if typeA == reflect.TypeOf(map[string]interface{}{}) {
+			return CompareMap(value.(map[string]interface{}), actual[i].(map[string]interface{}))
+		} else if typeA == reflect.TypeOf([]interface{}{}) {
+			return CompareSlice(value.([]interface{}), actual[i].([]interface{}))
+		} else {
+			return false, fmt.Errorf("Unsupported type %s of value %v", typeA, value)
+		}
+	}
+	return true, nil
+
 }
 
 // compareComparable tries to compare to values of different types. It returns a boolean indicating if the values are
