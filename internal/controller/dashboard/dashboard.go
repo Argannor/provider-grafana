@@ -252,12 +252,13 @@ func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 	}
 	setFolderId(spec.Folder, command)
 
-	_, err = c.service.CreateOrUpdateDashboard(orgId, command)
+	result, err := c.service.CreateOrUpdateDashboard(orgId, command)
 
 	if err != nil {
 		return managed.ExternalCreation{}, errors.Wrap(err, errFailedCreateDashboard)
 	}
 
+	cr.Status.AtProvider.ManagedVersion = result.Version
 	cr.Status.AtProvider.ConfigJSON = cr.Spec.ForProvider.ConfigJSON
 
 	return managed.ExternalCreation{
@@ -315,7 +316,10 @@ func (c *external) Update(ctx context.Context, mg resource.Managed) (managed.Ext
 	}
 	configJson["id"] = cr.Status.AtProvider.DashboardID
 	configJson["uid"] = cr.Status.AtProvider.UID
-
+	if spec.Overwrite != nil && *spec.Overwrite {
+		// ensure that the version is set to the current version if we are overwriting, so that Grafana won't reject
+		configJson["version"] = cr.Status.AtProvider.Version
+	}
 	command := &models.SaveDashboardCommand{
 		Dashboard: configJson,
 		IsFolder:  false,
@@ -332,6 +336,7 @@ func (c *external) Update(ctx context.Context, mg resource.Managed) (managed.Ext
 
 	copyToStatus(response, cr, *spec.OrgID)
 	cr.Status.AtProvider.ConfigJSON = cr.Spec.ForProvider.ConfigJSON
+	cr.Status.AtProvider.ManagedVersion = response.Version
 
 	return managed.ExternalUpdate{
 		// Optionally return any details that may be required to connect to the
@@ -415,15 +420,10 @@ func isUpToDate(cr *v1alpha1.Dashboard, atGrafana *models.DashboardFullWithMeta)
 
 	upToDate = upToDate && common.CompareOptional(spec.Folder, atGrafana.Meta.FolderUID, "")
 
-	if cr.Status.AtProvider.UID != nil {
-		// if the UID is still nil, we didn't have the chance to set the status yet, so we can't compare
-		upToDate = upToDate && cr.Status.AtProvider.ConfigJSON != nil && common.CompareOptional(spec.ConfigJSON, *cr.Status.AtProvider.ConfigJSON, "")
-	} else {
-		// unfortunately we can't set it in the Create method, so we need to do it here, and only if it is during
-		// observation after creation - otherwise it would interfere with change detection. During Update, the
-		// status will be updated accordingly.
-		cr.Status.AtProvider.ConfigJSON = cr.Spec.ForProvider.ConfigJSON
-	}
+	// identify changes to spec.ConfigJSON
+	upToDate = upToDate && common.CompareOptional(cr.Status.AtProvider.ConfigJSON, *spec.ConfigJSON, "")
+	// identify external changes by comparing the version
+	upToDate = upToDate && common.CompareOptional(cr.Status.AtProvider.Version, atGrafana.Meta.Version, 1)
 
 	return upToDate
 }

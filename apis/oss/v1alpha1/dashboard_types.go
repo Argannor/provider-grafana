@@ -108,6 +108,9 @@ type DashboardObservation struct {
 	// (Number) Whenever you save a version of your dashboard, a copy of that version is saved so that previous versions of your dashboard are not lost.
 	// Whenever you save a version of your dashboard, a copy of that version is saved so that previous versions of your dashboard are not lost.
 	Version *int64 `json:"version,omitempty" tf:"version,omitempty"`
+
+	// (Number) The version that was returned by Grafana on the last write operation carried out by this provider.
+	ManagedVersion *int64 `json:"managedVersion,omitempty" tf:"managed_version,omitempty"`
 }
 
 type DashboardParameters struct {
