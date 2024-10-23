@@ -379,18 +379,23 @@ func (c *external) updateUsers(cr *v1alpha1.Organization, actual v1alpha1.Organi
 }
 
 func mapUsers(p v1alpha1.OrganizationParameters) map[string]OrgUser {
+	var normalizedMail string
 	users := make(map[string]OrgUser)
 	for _, email := range p.Admins {
-		users[*email] = OrgUser{Email: *email, Role: "Admin"}
+		normalizedMail = strings.ToLower(*email)
+		users[normalizedMail] = OrgUser{Email: normalizedMail, Role: "Admin"}
 	}
 	for _, email := range p.Editors {
-		users[*email] = OrgUser{Email: *email, Role: "Editor"}
+		normalizedMail = strings.ToLower(*email)
+		users[normalizedMail] = OrgUser{Email: normalizedMail, Role: "Editor"}
 	}
 	for _, email := range p.Viewers {
-		users[*email] = OrgUser{Email: *email, Role: "Viewer"}
+		normalizedMail = strings.ToLower(*email)
+		users[normalizedMail] = OrgUser{Email: normalizedMail, Role: "Viewer"}
 	}
 	for _, email := range p.UsersWithoutAccess {
-		users[*email] = OrgUser{Email: *email, Role: "None"}
+		normalizedMail = strings.ToLower(*email)
+		users[normalizedMail] = OrgUser{Email: normalizedMail, Role: "None"}
 	}
 	return users
 }
